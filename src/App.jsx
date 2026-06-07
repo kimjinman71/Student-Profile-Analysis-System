@@ -35,7 +35,7 @@ import {
   Info
 } from 'lucide-react';
 
-const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+const MODEL_NAME = "gemini-2.5-flash";
 
 // 100개의 전문가용 접근 비밀번호 데이터셋 구축
 const VALID_PASSWORDS = ["0000", "8405"];
@@ -1135,24 +1135,7 @@ const App = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="p-2.5 hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-colors relative border border-slate-100 hover:border-slate-300"
-              title="Gemini API 설정"
-            >
-              <Settings className="w-5 h-5" />
-              {!(import.meta.env.VITE_GEMINI_API_KEY || apiKey) && (
-                <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></div>
-              )}
-            </button>
-            <button
-              onClick={() => setIsAuthenticated(false)}
-              className="px-4 py-2 border border-slate-200 hover:border-slate-800 text-xs font-black tracking-tight text-slate-600 hover:text-slate-950 transition-colors uppercase"
-            >
-              로그아웃
-            </button>
-          </div>
+
         </div>
       </header>
 
