@@ -1382,9 +1382,7 @@ const App = () => {
                         <span className="text-xs font-black text-slate-400 tracking-wider">등급 (GPA)</span>
                       </div>
                     </div>
-                    <p className="mt-3 text-xs text-slate-400 font-semibold leading-relaxed">
-                      * 소수점 둘째 자리까지 정확하게 입력해 주십시오. (범위: 1.00 ~ 9.00)
-                    </p>
+
                   </div>
 
                   {/* 고교유형 선택 */}
@@ -1412,9 +1410,7 @@ const App = () => {
                         <ChevronRight className="w-4 h-4 rotate-90" />
                       </div>
                     </div>
-                    <p className="mt-3 text-xs text-slate-400 font-semibold leading-relaxed">
-                      * 고교 유형별 보정치를 고려한 정밀 판독이 수행됩니다.
-                    </p>
+
                   </div>
                 </div>
               </div>
@@ -1724,7 +1720,7 @@ const App = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
                       <BarChart3 className="w-6 h-6 text-blue-600" />
-                      <h3 className="text-xl font-black text-slate-900 tracking-tight">수시 학생부 교과/종합 모의매칭</h3>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">학생부종합 모의매핑</h3>
                     </div>
                     
                     {/* 성적 등급제 선택 토글 */}
