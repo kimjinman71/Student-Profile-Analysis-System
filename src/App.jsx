@@ -233,7 +233,36 @@ const DEMO_ANALYSIS_DATA = {
         "융합 교과 이수에도 불구하고 이를 자신의 중심 진로와 유기적으로 엮어내는 창의적 해석 역량이 생기부에 미흡하게 기술됨."
       ]
     }
-  ]
+  ],
+  rubrics: {
+    academic: [
+      "우수 (★★)", "우수 (★★)", "충족 (★)", "충족 (★)", "우수 (★★)",
+      "충족 (★)", "부분충족 (O)", "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "우수 (★★)", "부분충족 (O)", "보완요구 (X)", "충족 (★)",
+      "우수 (★★)", "충족 (★)", "충족 (★)", "우수 (★★)",
+      "우수 (★★)", "충족 (★)", "우수 (★★)", "우수 (★★)"
+    ],
+    career: [
+      "우수 (★★)", "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "충족 (★)", "충족 (★)", "부분충족 (O)",
+      "충족 (★)", "부분충족 (O)", "부분충족 (O)", "우수 (★★)",
+      "우수 (★★)", "충족 (★)", "충족 (★)",
+      "우수 (★★)", "우수 (★★)", "충족 (★)", "우수 (★★)"
+    ],
+    community: [
+      "충족 (★)", "충족 (★)", "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "충족 (★)", "부분충족 (O)", "우수 (★★)",
+      "우수 (★★)", "충족 (★)", "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "충족 (★)", "우수 (★★)", "우수 (★★)",
+      "우수 (★★)", "충족 (★)", "충족 (★)", "우수 (★★)"
+    ],
+    subject: [
+      "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "부분충족 (O)",
+      "우수 (★★)", "충족 (★)",
+      "우수 (★★)", "충족 (★)"
+    ]
+  }
 };
 
 const UNIVERSITY_GRADE_DATA = {
@@ -471,11 +500,6 @@ const CompetencyCard = ({ title, icon: Icon, data, accentColor, iconBg, children
         </div>
         
         <div className="flex items-center gap-4 bg-slate-50 px-6 py-3 rounded-none border border-slate-100 self-start sm:self-center">
-          <div className="text-right">
-            <span className="block text-[10px] font-black text-slate-400 tracking-widest">백분율 스코어</span>
-            <span className="text-2xl font-black text-slate-900 tracking-tight">{data?.score || 90}<span className="text-xs text-slate-500 font-bold ml-1">점</span></span>
-          </div>
-          <div className="h-8 w-px bg-slate-200"></div>
           <div className="text-center px-2">
             <span className="block text-[10px] font-black text-slate-400 tracking-widest">평가 등급</span>
             <span className="text-2xl font-black text-blue-600 tracking-tight">{data?.grade || 'A'}</span>
@@ -581,6 +605,14 @@ const SUBJECT_RUBRICS = [
   { category: "학술 역량 확장성", rowspan: 2, question: "대학 진학 이후 고등 범주의 학문을 지속해서 발전시킬 가능성이 충분한가", result: "우수 (★★)" },
   { question: "다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 하나의 학술 스토리를 형성하는가", result: "충족 (★)" }
 ];
+
+const mapRubricResults = (staticRubrics, dynamicResults) => {
+  if (!dynamicResults || !Array.isArray(dynamicResults)) return staticRubrics;
+  return staticRubrics.map((row, idx) => ({
+    ...row,
+    result: dynamicResults[idx] || row.result
+  }));
+};
 
 const RubricTable = ({ title, iconColor, rubrics }) => {
   const getResultColor = (result) => {
@@ -755,8 +787,8 @@ const App = () => {
     engineering: { label: "공학계열", group: "tech", color: "from-blue-500 to-indigo-600" },
     semiconductor: { label: "반도체계열", group: "tech", color: "from-indigo-600 to-blue-700" },
     mobility: { label: "모빌리티계열", group: "tech", color: "from-cyan-500 to-blue-600" },
-    it_ai: { label: "IT · AI계열", group: "tech", color: "from-blue-600 to-cyan-600" },
-    ai_sw: { label: "AI · SW계열", group: "tech", color: "from-indigo-500 to-cyan-500" },
+    it_ai: { label: "IT계열", group: "tech", color: "from-blue-600 to-cyan-600" },
+    ai_sw: { label: "SW계열", group: "tech", color: "from-indigo-500 to-cyan-500" },
     architecture: { label: "건축계열", group: "tech", color: "from-amber-600 to-yellow-700" },
     contract: { label: "계약학과", group: "tech", color: "from-slate-600 to-slate-700" },
 
@@ -917,7 +949,7 @@ const App = () => {
 - 각 강점 및 보완 포인트는 데이터를 기반으로 1~2문장 이내의 핵심 위주로 아주 간결하게 작성하십시오.
 
 [핵심 사정 원칙]
-1. 학생의 희망 지원 계열이 자연계열(의학, 약학, 치의학, 한의학, 수의학, 첨단바이오, 반도체, IT/AI 등)일 경우 수학 및 과학 교과이수 여부와 '원점수'를 정밀 확인하십시오. 98점 이상의 우수 수학/과학 성취도는 극찬 사유로 반영합니다.
+1. 학생의 희망 지원 계열이 자연계열(의학, 약학, 치의학, 한의학, 수의학, 첨단바이오, 반도체, IT 등)일 경우 수학 및 과학 교과이수 여부와 '원점수'를 정밀 확인하십시오. 98점 이상의 우수 수학/과학 성취도는 극찬 사유로 반영합니다.
 2. 희망 분야 탐구 구체성: 지적호기심 → 자기주도적 활동 → 상세 실험/탐구 설계 → 구체적 성과 및 성찰의 5단계 흐름이 명확한 경우에 높은 수준의 역량으로 평가하십시오.
 3. 역량별 가치 점수화 및 평가 등급 기준:
    - **A+ 등급**: 전교과 내신 등급이 정확히 1.00 이며, 고교 유형이 일반고가 아닌 영재고, 과학고, 전국단위자사고일 때에만 부여하십시오.
@@ -931,7 +963,13 @@ const App = () => {
 7. 문장 내 따옴표는 작은 따옴표(')만 사용하십시오.
 8. 수학 원점수 언급 조건: 내신 등급이 1.50 등급 이내에 속하고, 희망 전공 계열이 의학계열, 치의학계열, 한의학계열, 약학계열, 수의학 계열, 공학계열, 반도체 계열, 계약학과, 경영경제계열 중 하나인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적이고 정확한 언급을 총평 및 분석 결과에 반드시 포함시키십시오.
 9. 파일 포맷 처리: 업로드한 학생부 파일이 텍스트 PDF이거나, 스캔본 PDF, 혹은 이미지(스마트폰 촬영본 등) 형태이더라도 전체 학생부 페이지를 정확하고 매우 빠르게 파싱하여 전체 텍스트와 누락된 교과 세특 내용을 누락 없이 완벽히 획득하고 정밀하게 분석을 완료하십시오.
-10. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.`;
+10. 파일 포맷 처리: 업로드한 학생부 파일이 텍스트 PDF이거나, 스캔본 PDF, 혹은 이미지(스마트폰 촬영본 등) 형태이더라도 전체 학생부 페이지를 정확하고 매우 빠르게 파싱하여 전체 텍스트와 누락된 교과 세특 내용을 누락 없이 완벽히 획득하고 정밀하게 분석을 완료하십시오.
+11. 루브릭 판정결과 도출 (rubrics): 학생부 기록에 근거하여 다음 4개 표의 총 68개 평정 문항 각각에 대해 개별 판정결과를 도출하십시오. 각 항목의 판정결과 문자열은 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하여 부여해야 합니다.
+  - academic: 학업역량 루브릭 문항 순서대로 22개의 판정결과 문자열 배열을 생성하십시오.
+  - career: 진로역량 루브릭 문항 순서대로 18개의 판정결과 문자열 배열을 생성하십시오.
+  - community: 공동체역량 루브릭 문항 순서대로 20개의 판정결과 문자열 배열을 생성하십시오.
+  - subject: 세특 연계 정성 분석 루브릭 문항 순서대로 8개의 판정결과 문자열 배열을 생성하십시오.
+12. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.`;
 
     const userPrompt = `업로드된 PDF 파일을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
 
@@ -1000,9 +1038,19 @@ const App = () => {
               },
               required: ["subject_group", "category", "strengths", "weaknesses"]
             }
+          },
+          rubrics: {
+            type: "OBJECT",
+            properties: {
+              academic: { type: "ARRAY", items: { type: "STRING" }, minItems: 22, maxItems: 22 },
+              career: { type: "ARRAY", items: { type: "STRING" }, minItems: 18, maxItems: 18 },
+              community: { type: "ARRAY", items: { type: "STRING" }, minItems: 20, maxItems: 20 },
+              subject: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 }
+            },
+            required: ["academic", "career", "community", "subject"]
           }
         },
-        required: ["student_profile", "admissions_verdict", "competencies", "subject_specific"]
+        required: ["student_profile", "admissions_verdict", "competencies", "subject_specific", "rubrics"]
       };
 
       const payload = {
@@ -1138,7 +1186,7 @@ const App = () => {
             </div>
             <div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                scan_LIFE <span className="text-xs font-bold px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100/50">COMPREHENSIVE ADMISSION AI</span>
+                scan_LIFE <span className="text-xs font-bold px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100/50">COMPREHENSIVE ADMISSION</span>
               </h1>
               <span className="text-[10px] block text-slate-400 tracking-widest uppercase font-extrabold">학생생활기록부 종합 사정 플랫폼</span>
             </div>
@@ -1359,7 +1407,7 @@ const App = () => {
               </div>
               
               <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">학생부 정밀 심사 엔진 가동 중</h3>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-10">AI STUDENT LIFE RECORD SCANNING</p>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-10">STUDENT LIFE RECORD SCANNING</p>
               
               {/* 진행 바 */}
               <div className="w-full bg-slate-100 h-2 border border-slate-200/50 mb-4 overflow-hidden rounded-none relative">
@@ -1392,7 +1440,7 @@ const App = () => {
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-3">
                   <span className="px-3 py-1 bg-blue-600/30 text-blue-300 border border-blue-500/20 text-[10px] font-black tracking-widest uppercase rounded-none">
-                    AI 분석 진단 완료
+                    분석 진단 완료
                   </span>
                   <span className="text-[10px] font-black text-slate-400 tracking-wider">
                     대상 학교유형: {analysisResult.student_profile.school_type || "일반계 고등학교"}
@@ -1472,7 +1520,7 @@ const App = () => {
                     </p>
                     <div className="p-4 bg-slate-50 border border-slate-200/50 text-[11px] font-semibold text-slate-500 rounded-none leading-relaxed flex gap-2">
                       <Info className="w-4.5 h-4.5 text-blue-500 shrink-0 mt-0.5" />
-                      <span>본 판독 소견서는 텍스트 분석에 특화된 AI 평가 알고리즘을 기반으로 도출되었으며, 실제 서류평가 시 중요한 기초자료로 활용될 수 있습니다.</span>
+                      <span>본 판독 소견서는 텍스트 분석에 특화된 평가 알고리즘을 기반으로 도출되었으며, 실제 서류평가 시 중요한 기초자료로 활용될 수 있습니다.</span>
                     </div>
                   </div>
 
@@ -1647,7 +1695,7 @@ const App = () => {
 
                           {/* 학생 내 점수 점선 및 라벨 배지 */}
                           {(() => {
-                            const currentGpa = gradeSystem === '9grade' ? studentOverallGpa : studentOverallGpa5;
+                            const currentGpa = studentOverallGpa;
                             const maxLimit = gradeSystem === '9grade' ? 5.0 : 4.0;
                             const minLimit = 1.0;
                             const lineTop = ((currentGpa - minLimit) / (maxLimit - minLimit)) * 100;
@@ -1700,7 +1748,7 @@ const App = () => {
                     <RubricTable 
                       title="학업역량 세부 평정 지표 루브릭 현황" 
                       iconColor="text-blue-600" 
-                      rubrics={ACADEMIC_RUBRICS} 
+                      rubrics={mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic)} 
                     />
                   </CompetencyCard>
 
@@ -1715,7 +1763,7 @@ const App = () => {
                     <RubricTable 
                       title="진로역량 세부 평정 지표 루브릭 현황" 
                       iconColor="text-purple-600" 
-                      rubrics={CAREER_RUBRICS} 
+                      rubrics={mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career)} 
                     />
                   </CompetencyCard>
 
@@ -1730,7 +1778,7 @@ const App = () => {
                     <RubricTable 
                       title="공동체역량 세부 평정 지표 루브릭 현황" 
                       iconColor="text-teal-600" 
-                      rubrics={COMMUNITY_RUBRICS} 
+                      rubrics={mapRubricResults(COMMUNITY_RUBRICS, analysisResult.rubrics?.community)} 
                     />
                   </CompetencyCard>
                 </div>
@@ -1808,7 +1856,7 @@ const App = () => {
                   <RubricTable 
                     title="과목별 세특 판단 기준 루브릭 현황" 
                     iconColor="text-blue-600" 
-                    rubrics={SUBJECT_RUBRICS} 
+                    rubrics={mapRubricResults(SUBJECT_RUBRICS, analysisResult.rubrics?.subject)} 
                   />
 
                   {/* 세특 판독 결과 리스트 매핑 */}
@@ -1886,7 +1934,7 @@ const App = () => {
             </div>
             
             <p className="text-slate-500 text-xs font-semibold leading-relaxed mb-6">
-              본 시스템은 Gemini 2.5 Flash 모델을 통해 대용량 생활기록부를 초고속 정성 심사합니다. 발급받은 Google AI Studio API 키를 입력해 주세요. (로컬 브라우저 보안 저장소에 암호화 보관됩니다.)
+              본 시스템은 Gemini 2.5 Flash 모델을 통해 대용량 생활기록부를 초고속 정성 심사합니다. 발급받은 Google Studio API 키를 입력해 주세요. (로컬 브라우저 보안 저장소에 암호화 보관됩니다.)
             </p>
 
             <div className="space-y-4">
