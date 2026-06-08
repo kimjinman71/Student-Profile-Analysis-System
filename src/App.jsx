@@ -1028,7 +1028,17 @@ const App = () => {
   - subject: 세특 연계 정성 분석 루브릭 문항 순서대로 8개의 판정결과 문자열 배열을 생성하십시오.
 11. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.
 12. 학생의 이름 추출: 업로드한 여러 장의 생활기록부 문서 중에서 학생의 실명(예: '김진만', '홍길동' 등)을 감지 및 추출하여 student_profile.student_name 필드에 기록하십시오. 만약 이름이 완전히 가려져(마스킹) 있거나 찾을 수 없을 때만 '분석대상'으로 기재해 주십시오.
-13. 파일 데이터 연계 및 매핑 정확성: 제공된 업로드 파일(텍스트 PDF, 스캔본 PDF, 모바일 촬영 이미지 등)의 어떠한 포맷 조건에서도 생활기록부 전체 본문을 빈틈없이 정독하고 정확히 파싱하여, 추출된 개별 세부 특기사항 및 교과 정보들이 JSON 응답 필드의 올바른 교과 분류(korean, math, english, science, social, other 등) 및 루브릭 결과 위치에 하나도 빠짐없이 정합하게 매핑되도록 처리하십시오.`;
+13. 파일 데이터 연계 및 매핑 정확성 및 교과군 세분화:
+  - subject_specific 배열에는 반드시 다음 6가지 교과군 분석 데이터가 명시된 순서대로 정확히 6개 원소로 구성되어야 합니다. 임의로 누락하거나 순서를 바꾸거나 크기를 줄여서는 안 됩니다.
+    1) {"subject_group": "국어 교과군 분석", "category": "korean", "strengths": [...], "weaknesses": [...]}
+    2) {"subject_group": "수학 교과군 분석", "category": "math", "strengths": [...], "weaknesses": [...]}
+    3) {"subject_group": "영어 교과군 분석", "category": "english", "strengths": [...], "weaknesses": [...]}
+    4) {"subject_group": "과학 교과군 분석", "category": "science", "strengths": [...], "weaknesses": [...]}
+    5) {"subject_group": "사회 교과군 분석", "category": "social", "strengths": [...], "weaknesses": [...]}
+    6) {"subject_group": "기타 교과군 분석", "category": "other", "strengths": [...], "weaknesses": [...]}
+  - 각 교과군별로 강점(strengths) 4개와 보완점(weaknesses) 8개를 학생부 데이터를 정확하게 마이닝하여 구체적인 사례(수업 태도, 탐구 성과, 질문 습관 등)를 토대로 정교하게 분석 및 추출하십시오. 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 평가 서술을 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다.
+  - 학업/진로/공동체 각 역량별 강점(strengths) 4개와 보완점(weaknesses) 8개 역시 학생부의 서술과 내신 정량 등급을 유기적으로 반영하여 구체적이고 현실적으로 추출하십시오.
+  - 루브릭 현황(rubrics)의 총 68개 각 평정 문항은 학생의 실제 활동 깊이와 수준을 상세하게 심사하여 타당성 있는 등급('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')을 정확히 매핑하십시오.`;
 
     const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
 
@@ -1099,6 +1109,8 @@ const App = () => {
           },
           subject_specific: {
             type: "ARRAY",
+            minItems: 6,
+            maxItems: 6,
             items: {
               type: "OBJECT",
               properties: {
