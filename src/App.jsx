@@ -1218,20 +1218,20 @@ const App = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans font-normal selection:bg-blue-500/10">
-        <div className="bg-white rounded-none p-10 md:p-12 max-w-md w-full shadow-[0_15px_50px_rgba(0,0,0,0.06)] flex flex-col items-center animate-in fade-in zoom-in-95 duration-700 border border-slate-100">
-          <div className="w-20 h-20 bg-blue-600 rounded-none flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
-            <Lock className="w-10 h-10 text-white" strokeWidth={2} />
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4 font-sans font-normal selection:bg-blue-500/10">
+        <div className="bg-white rounded-none p-10 md:p-12 max-w-sm w-full shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col items-center animate-in fade-in zoom-in-95 duration-700 border border-slate-100/50">
+          <div className="w-16 h-16 bg-[#2563EB] rounded-none flex items-center justify-center mb-8 shadow-md">
+            <Lock className="w-8 h-8 text-white" strokeWidth={2} />
           </div>
           
-          <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">사정관 시스템 접속</h2>
-          <p className="text-slate-500 text-center text-[15px] font-bold mb-10 leading-relaxed">
-            대학 입학 정성 평가 분석 보안망입니다.<br/>접근을 위해 보안 코드(0000 또는 8405)를 입력하십시오.
+          <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">보안 코드 인증</h2>
+          <p className="text-slate-500 text-center text-sm font-semibold mb-8 leading-relaxed">
+            데이터 분석 시스템입니다.<br/>접근을 위해 보안 코드를 입력해 주세요.
           </p>
           
           <div className="w-full relative mb-4 group">
-            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-500">
-              <Key className="w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#2563EB]">
+              <Key className="w-5 h-5 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
             </div>
             <input
               type="password"
@@ -1241,8 +1241,8 @@ const App = () => {
                 if (error) setError(null);
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="보안 인증코드 입력"
-              className="w-full bg-slate-50 border-2 border-slate-100 rounded-none py-4 pl-14 pr-4 text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+              placeholder="보안 코드 입력"
+              className="w-full bg-[#F1F5F9] border border-slate-100 rounded-none py-4 pl-14 pr-4 text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
             />
           </div>
           {error && (
@@ -1253,10 +1253,15 @@ const App = () => {
           )}
           <button
             onClick={handleLogin}
-            className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white font-black text-base transition-all duration-300 shadow-md hover:shadow-lg rounded-none"
+            className="w-full py-4 bg-[#2563EB] hover:bg-blue-600 text-white font-black text-base transition-all duration-300 shadow-md hover:shadow-lg rounded-none flex items-center justify-center gap-2"
           >
-            인증 및 시스템 접속
+            <ShieldCheck className="w-5 h-5 text-white" />
+            <span>시스템 접속</span>
           </button>
+
+          <div className="text-center mt-10">
+            <span className="text-[9px] text-slate-400 font-bold tracking-widest">SECURED BY IPSISKETCH DATA LAB</span>
+          </div>
         </div>
       </div>
     );
