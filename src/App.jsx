@@ -32,7 +32,8 @@ import {
   Settings,
   HelpCircle,
   TrendingDown,
-  Info
+  Info,
+  Image
 } from 'lucide-react';
 
 const MODEL_NAME = "gemini-2.5-flash";
@@ -45,6 +46,7 @@ const VALID_PASSWORDS = import.meta.env.VITE_VALID_PASSWORDS
 // 시뮬레이션 및 테스트를 위한 최고 수준의 데모 데이터셋
 const DEMO_ANALYSIS_DATA = {
   student_profile: {
+    student_name: "홍길동",
     estimated_gpa: "1.15",
     major_track: "의약학 / 바이오 융합 계열",
     school_type: "일반계 고등학교 (자연계열)"
@@ -666,7 +668,7 @@ const RubricTable = ({ title, iconColor, rubrics }) => {
 
 // --- 메인 App 컴포넌트 선언 ---
 const App = () => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState(null);
@@ -735,10 +737,11 @@ const App = () => {
     setTimeout(() => {
       clearInterval(interval);
       setProgress(100);
-      const demoResult = { ...DEMO_ANALYSIS_DATA };
+      const demoResult = JSON.parse(JSON.stringify(DEMO_ANALYSIS_DATA));
       demoResult.student_profile.major_track = majorMeta[targetMajor].label;
       demoResult.student_profile.estimated_gpa = '1.15';
       demoResult.student_profile.school_type = schoolType;
+      demoResult.student_profile.student_name = demoResult.student_profile.student_name || "홍길동";
       setAnalysisResult(demoResult);
       setLoading(false);
       setActiveResultTab('admission'); // 기본적으로 새로운 '2페이지(진단 및 예측)'를 띄움
@@ -877,18 +880,34 @@ const App = () => {
   };
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    processSelectedFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files);
+    processSelectedFiles(selectedFiles);
   };
 
-  const processSelectedFile = (selectedFile) => {
-    if (selectedFile) {
-      if (selectedFile.type !== 'application/pdf') {
-        setError('지원되지 않는 파일 형식입니다. PDF 파일만 업로드 가능합니다.');
-        return;
+  const processSelectedFiles = (selectedFiles) => {
+    if (selectedFiles && selectedFiles.length > 0) {
+      const validFiles = [];
+      const invalidFiles = [];
+      
+      selectedFiles.forEach(f => {
+        const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+        const isImage = f.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name);
+        if (isPdf || isImage) {
+          validFiles.push(f);
+        } else {
+          invalidFiles.push(f);
+        }
+      });
+
+      if (invalidFiles.length > 0) {
+        setError(`지원되지 않는 파일 형식이 포함되어 있습니다. PDF 또는 이미지 파일만 업로드 가능합니다. (제외된 파일: ${invalidFiles.map(f => f.name).join(', ')})`);
+      } else {
+        setError(null);
       }
-      setFile(selectedFile);
-      setError(null);
+
+      if (validFiles.length > 0) {
+        setFiles(prev => [...prev, ...validFiles]);
+      }
     }
   };
 
@@ -904,13 +923,18 @@ const App = () => {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const selectedFile = e.dataTransfer.files[0];
-    processSelectedFile(selectedFile);
+    const selectedFiles = Array.from(e.dataTransfer.files);
+    processSelectedFiles(selectedFiles);
   };
 
   const clearFile = () => {
-    setFile(null);
+    setFiles([]);
     setAnalysisResult(null);
+    setError(null);
+  };
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, idx) => idx !== index));
     setError(null);
   };
 
@@ -924,7 +948,7 @@ const App = () => {
   };
 
   const analyzeStudentRecord = async () => {
-    if (!file) {
+    if (files.length === 0) {
       setError('분석할 파일을 업로드해 주세요.');
       return;
     }
@@ -940,7 +964,7 @@ const App = () => {
 
     const selectedMajorText = majorMeta[targetMajor].label;
 
-    const systemPrompt = `대한민국 대학 입시 전문가 및 입시 데이터를 다루는 교육 데이터 전문가입니다. 학생부(PDF) 파일을 정밀 분석하여 학업역량, 진로역량, 공동체역량 및 세특 연계 분석이 통합된 종합 리포트를 생성하십시오.
+    const systemPrompt = `대한민국 대학 입시 전문가 및 입시 데이터를 다루는 교육 데이터 전문가입니다. 학생부(PDF 및 이미지) 파일을 정밀 분석하여 학업역량, 진로역량, 공동체역량 및 세특 연계 분석이 통합된 종합 리포트를 생성하십시오.
 설명의 어조는 부드러우면서도 대학 입학사정관실 고유의 권위 있고 학술적인 전문 톤을 유지하십시오.
 특히, 본 학생의 희망 지원 계열은 [${selectedMajorText}] 이며, 학생의 입력된 고교 유형은 [${schoolType}] 이고, 전교과 내신 등급은 [${estimatedGpa} 등급] 입니다. 이 고교 유형에 따른 보정치 및 전공 가중치 기준과 입력된 정량 내신 등급에 입각해 전공 학업 정합성과 세특 탐구의 깊이 및 이수율의 유불리를 정밀 심사하십시오.
 
@@ -963,18 +987,29 @@ const App = () => {
 7. 문장 내 따옴표는 작은 따옴표(')만 사용하십시오.
 8. 수학 원점수 언급 조건: 내신 등급이 1.50 등급 이내에 속하고, 희망 전공 계열이 의학계열, 치의학계열, 한의학계열, 약학계열, 수의학 계열, 공학계열, 반도체 계열, 계약학과, 경영경제계열 중 하나인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적이고 정확한 언급을 총평 및 분석 결과에 반드시 포함시키십시오.
 9. 파일 포맷 처리: 업로드한 학생부 파일이 텍스트 PDF이거나, 스캔본 PDF, 혹은 이미지(스마트폰 촬영본 등) 형태이더라도 전체 학생부 페이지를 정확하고 매우 빠르게 파싱하여 전체 텍스트와 누락된 교과 세특 내용을 누락 없이 완벽히 획득하고 정밀하게 분석을 완료하십시오.
-10. 파일 포맷 처리: 업로드한 학생부 파일이 텍스트 PDF이거나, 스캔본 PDF, 혹은 이미지(스마트폰 촬영본 등) 형태이더라도 전체 학생부 페이지를 정확하고 매우 빠르게 파싱하여 전체 텍스트와 누락된 교과 세특 내용을 누락 없이 완벽히 획득하고 정밀하게 분석을 완료하십시오.
-11. 루브릭 판정결과 도출 (rubrics): 학생부 기록에 근거하여 다음 4개 표의 총 68개 평정 문항 각각에 대해 개별 판정결과를 도출하십시오. 각 항목의 판정결과 문자열은 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하여 부여해야 합니다.
+10. 루브릭 판정결과 도출 (rubrics): 학생부 기록에 근거하여 다음 4개 표의 총 68개 평정 문항 각각에 대해 개별 판정결과를 도출하십시오. 각 항목의 판정결과 문자열은 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하여 부여해야 합니다.
   - academic: 학업역량 루브릭 문항 순서대로 22개의 판정결과 문자열 배열을 생성하십시오.
   - career: 진로역량 루브릭 문항 순서대로 18개의 판정결과 문자열 배열을 생성하십시오.
   - community: 공동체역량 루브릭 문항 순서대로 20개의 판정결과 문자열 배열을 생성하십시오.
   - subject: 세특 연계 정성 분석 루브릭 문항 순서대로 8개의 판정결과 문자열 배열을 생성하십시오.
-12. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.`;
+11. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.
+12. 학생의 이름 추출: 업로드한 여러 장의 생활기록부 문서 중에서 학생의 실명(예: '김진만', '홍길동' 등)을 감지 및 추출하여 student_profile.student_name 필드에 기록하십시오. 만약 이름이 완전히 가려져(마스킹) 있거나 찾을 수 없을 때만 '분석대상'으로 기재해 주십시오.`;
 
-    const userPrompt = `업로드된 PDF 파일을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
+    const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
 
     try {
-      const base64Data = await fileToBase64(file);
+      // Convert all files to base64 in parallel
+      const fileDataPromises = files.map(async (f) => {
+        const base64Data = await fileToBase64(f);
+        return {
+          inlineData: {
+            mimeType: f.type || (f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+            data: base64Data
+          }
+        };
+      });
+      const fileParts = await Promise.all(fileDataPromises);
+
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
       
       const responseSchema = {
@@ -983,11 +1018,12 @@ const App = () => {
           student_profile: {
             type: "OBJECT",
             properties: {
+              student_name: { type: "STRING" },
               estimated_gpa: { type: "STRING" },
               major_track: { type: "STRING" },
               school_type: { type: "STRING" }
             },
-            required: ["estimated_gpa", "major_track", "school_type"]
+            required: ["student_name", "estimated_gpa", "major_track", "school_type"]
           },
           admissions_verdict: { type: "STRING" },
           competencies: {
@@ -1054,7 +1090,7 @@ const App = () => {
       };
 
       const payload = {
-        contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+        contents: [{ parts: [{ text: userPrompt }, ...fileParts] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: { 
           responseMimeType: "application/json",
@@ -1078,6 +1114,7 @@ const App = () => {
       parsedData.student_profile.estimated_gpa = estimatedGpa;
       parsedData.student_profile.major_track = selectedMajorText;
       parsedData.student_profile.school_type = schoolType;
+      parsedData.student_profile.student_name = parsedData.student_profile.student_name || "분석대상";
       setAnalysisResult(parsedData);
       setActiveResultTab('admission'); // 기본적으로 새로운 '2페이지(진단 및 예측)'를 띄움
     } catch (err) {
@@ -1342,7 +1379,7 @@ const App = () => {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-none p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-500 h-64 ${
+                    className={`border-2 border-dashed rounded-none p-6 flex flex-col justify-center transition-all duration-500 min-h-64 ${
                       isDragging
                         ? 'border-blue-600 bg-blue-50/10'
                         : 'border-slate-200 hover:border-slate-400 bg-slate-50/30'
@@ -1351,31 +1388,84 @@ const App = () => {
                     <input
                       type="file"
                       id="student-record-upload"
-                      accept=".pdf"
+                      accept=".pdf,image/*"
+                      multiple
                       onChange={handleFileChange}
                       className="hidden"
                     />
-                    <label htmlFor="student-record-upload" className="cursor-pointer flex flex-col items-center">
-                      <div className="w-16 h-16 bg-slate-100 rounded-none flex items-center justify-center mb-5 hover:bg-slate-200 transition-colors">
-                        <Upload className="w-7 h-7 text-slate-600" />
-                      </div>
-                      {file ? (
-                        <div className="space-y-1.5">
-                          <span className="text-sm font-black text-slate-900 block truncate max-w-[200px]">{file.name}</span>
-                          <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">PDF 파일 인식 완료</span>
+                    
+                    {files.length === 0 ? (
+                      <label htmlFor="student-record-upload" className="cursor-pointer flex flex-col items-center justify-center py-6 w-full h-full">
+                        <div className="w-16 h-16 bg-slate-100 rounded-none flex items-center justify-center mb-5 hover:bg-slate-200 transition-colors">
+                          <Upload className="w-7 h-7 text-slate-600" />
                         </div>
-                      ) : (
                         <div className="space-y-2">
-                          <span className="text-sm font-black text-slate-800 block">생활기록부 PDF 드롭 또는 파일 선택</span>
-                          <span className="text-[11px] font-medium text-slate-400 block">정부24 발급용 원본 PDF 파일 지원</span>
+                          <span className="text-sm font-black text-slate-800 block">생활기록부 파일 드롭 또는 선택</span>
+                          <span className="text-[11px] font-medium text-slate-400 block">PDF, 스캔본 PDF, 이미지 복수 선택 지원</span>
                         </div>
-                      )}
-                    </label>
+                      </label>
+                    ) : (
+                      <div className="flex flex-col w-full h-full text-left">
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/60">
+                          <span className="text-xs font-black text-slate-700">업로드 대기 중인 파일 ({files.length}개)</span>
+                          <button 
+                            type="button" 
+                            onClick={(e) => { e.stopPropagation(); clearFile(); }} 
+                            className="text-[11px] font-bold text-rose-500 hover:underline flex items-center gap-1"
+                          >
+                            전체 삭제
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-none">
+                          {files.map((f, idx) => {
+                            const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+                            return (
+                              <div key={idx} className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-none text-left">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  {isPdf ? (
+                                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                                  ) : (
+                                    <Image className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  )}
+                                  <span className="text-xs font-bold text-slate-800 truncate max-w-[180px] md:max-w-[200px]">
+                                    {f.name}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-semibold shrink-0">
+                                    ({(f.size / 1024 / 1024).toFixed(2)}MB)
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeFile(idx);
+                                  }}
+                                  className="p-1 hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="mt-4 pt-3 border-t border-slate-200/60 flex justify-end">
+                          <label 
+                            htmlFor="student-record-upload" 
+                            className="cursor-pointer px-4 py-2 border border-slate-300 hover:border-slate-800 text-slate-700 hover:text-slate-950 font-black text-xs transition-all bg-white hover:bg-slate-50 inline-flex items-center gap-1.5"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>파일 추가하기</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="space-y-3 mt-8">
-                  {file && (
+                  {files.length > 0 && (
                     <button
                       onClick={analyzeStudentRecord}
                       className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white font-black text-[15px] transition-all duration-300 flex items-center justify-center gap-2 rounded-none"
@@ -1439,6 +1529,11 @@ const App = () => {
               <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-none -mr-40 -mt-40 blur-3xl"></div>
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-3">
+                  {analysisResult.student_profile.student_name && (
+                    <span className="px-3 py-1 bg-blue-600 text-white text-[10px] font-black tracking-wider uppercase rounded-none">
+                      {analysisResult.student_profile.student_name} 학생
+                    </span>
+                  )}
                   <span className="px-3 py-1 bg-blue-600/30 text-blue-300 border border-blue-500/20 text-[10px] font-black tracking-widest uppercase rounded-none">
                     분석 진단 완료
                   </span>
@@ -1447,7 +1542,10 @@ const App = () => {
                   </span>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight">{analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}</h2>
+                  <h2 className="text-3xl font-black tracking-tight">
+                    {analysisResult.student_profile.student_name ? `${analysisResult.student_profile.student_name} 학생 | ` : ""}
+                    {analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}
+                  </h2>
                   <p className="text-slate-400 text-sm font-semibold mt-1">
                     본 평가는 3대 평가 요소(학업, 진로, 공동체) 정성 평가와 교과 세부능력 특기사항 문맥 데이터 마이닝 결과를 종합한 결과입니다.
                   </p>
