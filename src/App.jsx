@@ -1616,10 +1616,7 @@ const App = () => {
                     <p className="text-[14.5px] font-semibold text-slate-700 leading-relaxed text-justify">
                       {analysisResult.admissions_verdict}
                     </p>
-                    <div className="p-4 bg-slate-50 border border-slate-200/50 text-[11px] font-semibold text-slate-500 rounded-none leading-relaxed flex gap-2">
-                      <Info className="w-4.5 h-4.5 text-blue-500 shrink-0 mt-0.5" />
-                      <span>본 판독 소견서는 텍스트 분석에 특화된 평가 알고리즘을 기반으로 도출되었으며, 실제 서류평가 시 중요한 기초자료로 활용될 수 있습니다.</span>
-                    </div>
+
                   </div>
 
                   {/* 학교생활기록부 종합 평가 등급 카드 */}
@@ -1667,9 +1664,7 @@ const App = () => {
                       })}
                     </div>
 
-                    <p className="text-[11px] font-semibold text-slate-500 leading-relaxed">
-                      * 전체 교과 이수 지표 및 심층 세특 탐구 패턴을 종합 교정 분석하여 도출한 통합 역량 평정입니다.
-                    </p>
+
                   </div>
                 </div>
 
@@ -1721,10 +1716,7 @@ const App = () => {
 
                   {/* 신형 수시 모의매칭 세로 컬럼형 차트 (Mockup 동일 적용) */}
                   <div className="border border-slate-100 p-6 rounded-none bg-white space-y-6">
-                    <div className="p-4 bg-slate-50 border border-slate-200/50 text-[11px] font-semibold text-slate-500 rounded-none leading-relaxed flex gap-2">
-                      <Info className="w-4.5 h-4.5 text-blue-500 shrink-0 mt-0.5" />
-                      <span>원하는 대학을 한눈에 비교하기 위해 가로 스크롤을 이용해 주십시오. 마우스를 올리면 각 대학의 합격 내신 컷(Min~Max) 범위 정보가 상세 표시됩니다.</span>
-                    </div>
+
 
                     <div className="relative w-full border border-slate-200/60 bg-[#fafafa] p-6 pt-16">
                       {/* 차트 가로 스크롤 영역 */}
