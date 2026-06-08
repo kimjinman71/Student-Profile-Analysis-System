@@ -505,10 +505,7 @@ const CompetencyCard = ({ title, icon: Icon, data, accentColor, iconBg, children
           </div>
           <div>
             <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{title}</h3>
-            <div className="flex items-center gap-1 mt-1 text-slate-500">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="text-[11px] font-extrabold uppercase tracking-widest ml-1 text-slate-500">사정관 정성 평가 항목</span>
-            </div>
+
           </div>
         </div>
         
@@ -1030,7 +1027,8 @@ const App = () => {
   - community: 공동체역량 루브릭 문항 순서대로 20개의 판정결과 문자열 배열을 생성하십시오.
   - subject: 세특 연계 정성 분석 루브릭 문항 순서대로 8개의 판정결과 문자열 배열을 생성하십시오.
 11. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.
-12. 학생의 이름 추출: 업로드한 여러 장의 생활기록부 문서 중에서 학생의 실명(예: '김진만', '홍길동' 등)을 감지 및 추출하여 student_profile.student_name 필드에 기록하십시오. 만약 이름이 완전히 가려져(마스킹) 있거나 찾을 수 없을 때만 '분석대상'으로 기재해 주십시오.`;
+12. 학생의 이름 추출: 업로드한 여러 장의 생활기록부 문서 중에서 학생의 실명(예: '김진만', '홍길동' 등)을 감지 및 추출하여 student_profile.student_name 필드에 기록하십시오. 만약 이름이 완전히 가려져(마스킹) 있거나 찾을 수 없을 때만 '분석대상'으로 기재해 주십시오.
+13. 파일 데이터 연계 및 매핑 정확성: 제공된 업로드 파일(텍스트 PDF, 스캔본 PDF, 모바일 촬영 이미지 등)의 어떠한 포맷 조건에서도 생활기록부 전체 본문을 빈틈없이 정독하고 정확히 파싱하여, 추출된 개별 세부 특기사항 및 교과 정보들이 JSON 응답 필드의 올바른 교과 분류(korean, math, english, science, social, other 등) 및 루브릭 결과 위치에 하나도 빠짐없이 정합하게 매핑되도록 처리하십시오.`;
 
     const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
 
@@ -1599,12 +1597,9 @@ const App = () => {
                 </div>
                 <div>
                   <h2 className="text-3xl font-black tracking-tight">
-                    {analysisResult.student_profile.student_name ? `${analysisResult.student_profile.student_name} 학생 | ` : ""}
                     {analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}
                   </h2>
-                  <p className="text-slate-400 text-sm font-semibold mt-1">
-                    본 평가는 3대 평가 요소(학업, 진로, 공동체) 정성 평가와 교과 세부능력 특기사항 문맥 데이터 마이닝 결과를 종합한 결과입니다.
-                  </p>
+
                 </div>
               </div>
               
@@ -1885,7 +1880,7 @@ const App = () => {
                 <div className="grid grid-cols-1 gap-8">
                   {/* 학업역량 */}
                   <CompetencyCard 
-                    title="학업역량 (Academic Competency)" 
+                    title="학업역량" 
                     icon={GraduationCap}
                     data={analysisResult.competencies?.academic}
                     accentColor="from-blue-600 to-indigo-600"
@@ -1897,10 +1892,10 @@ const App = () => {
                       rubrics={mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic)} 
                     />
                   </CompetencyCard>
-
+ 
                   {/* 진로역량 */}
                   <CompetencyCard 
-                    title="진로역량 (Career Competency)" 
+                    title="진로역량" 
                     icon={Target}
                     data={analysisResult.competencies?.career}
                     accentColor="from-purple-600 to-indigo-600"
@@ -1912,10 +1907,10 @@ const App = () => {
                       rubrics={mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career)} 
                     />
                   </CompetencyCard>
-
+ 
                   {/* 공동체역량 */}
                   <CompetencyCard 
-                    title="공동체역량 (Community Competency)" 
+                    title="공동체역량" 
                     icon={Users}
                     data={analysisResult.competencies?.community}
                     accentColor="from-teal-600 to-emerald-600"
