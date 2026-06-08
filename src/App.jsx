@@ -358,10 +358,8 @@ const cleanAndParseJson = (text) => {
   if (!text) return null;
   let cleaned = text.trim();
   
-  cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
   const startIdx = cleaned.indexOf('{');
   if (startIdx === -1) return null;
-  
   let partialJson = cleaned.substring(startIdx);
 
   const fixTruncatedJson = (str) => {
@@ -404,8 +402,8 @@ const cleanAndParseJson = (text) => {
     return result;
   };
 
-  try {
-    const sanitized = partialJson
+  const sanitizeString = (str) => {
+    return str
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => {
         if (c === '\n') return '\\n';
         if (c === '\r') return '\\r';
@@ -413,17 +411,30 @@ const cleanAndParseJson = (text) => {
         return ' ';
       })
       .replace(/,\s*([\]}])/g, "$1");
+  };
 
-    return JSON.parse(sanitized);
+  // Try 1: Parse starting from first '{' after sanitization
+  try {
+    return JSON.parse(sanitizeString(partialJson));
   } catch (e) {
+    // Try 2: Find the last '}' and isolate it
+    const endIdx = partialJson.lastIndexOf('}');
+    if (endIdx !== -1) {
+      try {
+        const subJson = partialJson.substring(0, endIdx + 1);
+        return JSON.parse(sanitizeString(subJson));
+      } catch (subErr) {
+        // Continue to recovery
+      }
+    }
+    
+    // Try 3: Truncated JSON recovery
     console.warn("구조 복원 엔진 가동...");
     try {
-      const recovered = fixTruncatedJson(partialJson)
-        .replace(/\r?\n|\r/g, " ")
-        .replace(/,\s*([\]}])/g, "$1");
-      return JSON.parse(recovered);
+      const recovered = fixTruncatedJson(partialJson);
+      return JSON.parse(sanitizeString(recovered.replace(/\r?\n|\r/g, " ")));
     } catch (e2) {
-      throw new Error("제이슨_파싱_오류");
+      return null;
     }
   }
 };
@@ -867,9 +878,26 @@ const App = () => {
     const delays = [1000, 2000, 4000, 8000, 16000];
     try {
       const response = await fetch(url, options);
-      if (!response.ok) throw new Error(`통신 오류: ${response.status}`);
+      if (!response.ok) {
+        let errorMsg = `통신 오류: ${response.status}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.error?.message) {
+            errorMsg = errBody.error.message;
+          }
+        } catch (_) {
+          // ignore
+        }
+        
+        const err = new Error(errorMsg);
+        err.status = response.status;
+        throw err;
+      }
       return await response.json();
     } catch (err) {
+      if (err.status === 404 || err.status === 400) {
+        throw err;
+      }
       if (retries > 0) {
         const delay = delays[5 - retries];
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -901,9 +929,18 @@ const App = () => {
 
       if (invalidFiles.length > 0) {
         setError(`지원되지 않는 파일 형식이 포함되어 있습니다. PDF 또는 이미지 파일만 업로드 가능합니다. (제외된 파일: ${invalidFiles.map(f => f.name).join(', ')})`);
-      } else {
-        setError(null);
+        return;
       }
+
+      // Check total size limit (18MB to be safe for 20MB API payload limit)
+      const currentSize = files.reduce((acc, f) => acc + f.size, 0);
+      const incomingSize = validFiles.reduce((acc, f) => acc + f.size, 0);
+      if (currentSize + incomingSize > 18 * 1024 * 1024) {
+        setError('한 번에 업로드할 수 있는 파일의 총 크기는 18MB를 초과할 수 없습니다. 크기가 큰 파일은 분할하여 업로드해 주세요.');
+        return;
+      }
+
+      setError(null);
 
       if (validFiles.length > 0) {
         setFiles(prev => [...prev, ...validFiles]);
@@ -1089,25 +1126,44 @@ const App = () => {
         required: ["student_profile", "admissions_verdict", "competencies", "subject_specific", "rubrics"]
       };
 
-      const payload = {
-        contents: [{ parts: [{ text: userPrompt }, ...fileParts] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { 
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-          maxOutputTokens: 8192, 
-          temperature: 0.1 
+      let result = null;
+      let usedModel = MODEL_NAME;
+      const fallbackModels = [MODEL_NAME, "gemini-2.0-flash", "gemini-1.5-flash"];
+      
+      for (const model of fallbackModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
+          const payload = {
+            contents: [{ parts: [{ text: userPrompt }, ...fileParts] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { 
+              responseMimeType: "application/json",
+              responseSchema: responseSchema,
+              maxOutputTokens: 8192, 
+              temperature: 0.1 
+            }
+          };
+          result = await fetchWithRetry(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          usedModel = model;
+          break;
+        } catch (fetchErr) {
+          console.warn(`Model ${model} failed:`, fetchErr);
+          if (model === fallbackModels[fallbackModels.length - 1]) {
+            throw fetchErr;
+          }
         }
-      };
+      }
 
-      const result = await fetchWithRetry(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const parsedData = cleanAndParseJson(result.candidates?.[0]?.content?.parts?.[0]?.text);
-      if (!parsedData) throw new Error("데이터_추출_실패");
+      const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      const parsedData = cleanAndParseJson(rawText);
+      if (!parsedData) {
+        console.error("Failed to parse JSON response:", rawText);
+        throw new Error("API 응답 데이터 형식이 올바르지 않거나 손상되었습니다.");
+      }
 
       setProgress(100); 
       // 학생의 정량 내신 정보를 동기화
@@ -1119,7 +1175,7 @@ const App = () => {
       setActiveResultTab('admission'); // 기본적으로 새로운 '2페이지(진단 및 예측)'를 띄움
     } catch (err) {
       console.error(err);
-      setError('생활기록부 통합 정성 분석 중 서버 점검 또는 API 한계 오류가 발생했습니다. 아래 시뮬레이션 전용 데모 데이터 분석 시뮬레이션을 작동하여 가독성 테스트를 수행할 수 있습니다.');
+      setError(`생활기록부 정밀 분석 중 오류가 발생했습니다. (${err.message}). API 키 유효성 및 네트워크 상태를 확인해 주세요. 우측 하단의 데모 데이터 분석 시뮬레이션을 사용하여 가독성 테스트를 즉시 수행할 수 있습니다.`);
     } finally {
       setLoading(false);
     }
