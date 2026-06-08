@@ -1036,11 +1036,11 @@ const App = () => {
     4) {"subject_group": "과학 교과군 분석", "category": "science", "strengths": [...], "weaknesses": [...]}
     5) {"subject_group": "사회 교과군 분석", "category": "social", "strengths": [...], "weaknesses": [...]}
     6) {"subject_group": "기타 교과군 분석", "category": "other", "strengths": [...], "weaknesses": [...]}
-  - 각 교과군별로 강점(strengths) 4개와 보완점(weaknesses) 8개를 학생부 데이터를 정확하게 마이닝하여 구체적인 사례(수업 태도, 탐구 성과, 질문 습관 등)를 토대로 정교하게 분석 및 추출하십시오. 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 평가 서술을 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다.
-  - 학업/진로/공동체 각 역량별 강점(strengths) 4개와 보완점(weaknesses) 8개 역시 학생부의 서술과 내신 정량 등급을 유기적으로 반영하여 구체적이고 현실적으로 추출하십시오.
+  - 각 교과군별로 강점(strengths) 3개와 보완점(weaknesses) 4개를 학생부 데이터를 정확하게 마이닝하여 구체적인 사례(수업 태도, 탐구 성과, 질문 습관 등)를 토대로 정교하게 분석 및 추출하십시오. 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 평가 서술을 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다.
+  - 학업/진로/공동체 각 역량별 강점(strengths) 3개와 보완점(weaknesses) 4개 역시 학생부의 서술과 내신 정량 등급을 유기적으로 반영하여 구체적이고 현실적으로 추출하십시오.
   - 루브릭 현황(rubrics)의 총 68개 각 평정 문항은 학생의 실제 활동 깊이와 수준을 상세하게 심사하여 타당성 있는 등급('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')을 정확히 매핑하십시오.`;
 
-    const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 4개, 보완점 8개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
+    const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 3개, 보완점 4개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
 
     try {
       // Convert all files to base64 in parallel
@@ -1079,8 +1079,8 @@ const App = () => {
                 properties: { 
                   score: { type: "INTEGER" },
                   grade: { type: "STRING" },
-                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 }, 
-                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 } 
+                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 }, 
+                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 } 
                 },
                 required: ["score", "grade", "strengths", "weaknesses"]
               },
@@ -1089,8 +1089,8 @@ const App = () => {
                 properties: { 
                   score: { type: "INTEGER" },
                   grade: { type: "STRING" },
-                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 }, 
-                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 } 
+                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 }, 
+                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 } 
                 },
                 required: ["score", "grade", "strengths", "weaknesses"]
               },
@@ -1099,8 +1099,8 @@ const App = () => {
                 properties: { 
                   score: { type: "INTEGER" },
                   grade: { type: "STRING" },
-                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 }, 
-                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 } 
+                  strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 }, 
+                  weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 } 
                 },
                 required: ["score", "grade", "strengths", "weaknesses"]
               }
@@ -1116,8 +1116,8 @@ const App = () => {
               properties: {
                 subject_group: { type: "STRING" },
                 category: { type: "STRING" },
-                strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 },
-                weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 }
+                strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 },
+                weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 }
               },
               required: ["subject_group", "category", "strengths", "weaknesses"]
             }
