@@ -33,7 +33,9 @@ import {
   HelpCircle,
   TrendingDown,
   Info,
-  Image
+  Image,
+  AlertTriangle,
+  RotateCw
 } from 'lucide-react';
 
 const MODEL_NAME = "gemini-2.5-flash";
@@ -1389,6 +1391,21 @@ const App = () => {
     );
   }
 
+  const isCompetencyEmpty = 
+    !analysisResult?.competencies?.academic?.strengths?.length || 
+    !analysisResult?.competencies?.academic?.weaknesses?.length ||
+    !analysisResult?.competencies?.career?.strengths?.length || 
+    !analysisResult?.competencies?.career?.weaknesses?.length ||
+    !analysisResult?.competencies?.community?.strengths?.length || 
+    !analysisResult?.competencies?.community?.weaknesses?.length;
+
+  const isSubjectSpecificEmpty = 
+    !analysisResult?.subject_specific || 
+    analysisResult.subject_specific.length === 0 ||
+    analysisResult.subject_specific.some(item => !item.strengths?.length || !item.weaknesses?.length);
+
+  const showReAnalyzeButton = analysisResult && (isCompetencyEmpty || isSubjectSpecificEmpty);
+
   const categorizedSubjects = getCategorizedSubjects();
   const studentOverallGpa = simulatedGpa;
   const studentOverallGpa5 = estimate5Gpa(simulatedGpa);
@@ -1999,6 +2016,28 @@ const App = () => {
             {/* 탭 2. 심층 정성 리포트 (역량별 평가 및 세특 진단) */}
             {activeResultTab === 'report' && (
               <div className="space-y-8">
+                {showReAnalyzeButton && (
+                  <div className="bg-rose-50 border border-rose-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-none shadow-sm">
+                    <div className="flex items-start gap-3.5">
+                      <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-black text-rose-950 tracking-tight">심층 분석 결과 누락 감지</h4>
+                        <p className="text-xs text-rose-600 font-semibold leading-relaxed mt-1">
+                          역량평가 또는 교과군 세특 판독서의 강점/보완점 중 일부 출력 내용이 누락되었거나 생성되지 않았습니다. 보다 정밀한 학생부 리포트 완성을 위해 재분석을 진행해 주십시오.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={analyzeStudentRecord}
+                      disabled={loading}
+                      className="px-5 py-3.5 bg-rose-600 hover:bg-slate-900 text-white font-black text-xs transition-all flex items-center gap-2 rounded-none shadow-sm shrink-0 uppercase tracking-wider"
+                    >
+                      <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                      분석 데이터 재파싱 수행
+                    </button>
+                  </div>
+                )}
+
                 {/* 3대 정성 역량 평가 */}
                 <div className="grid grid-cols-1 gap-8">
                   {/* 학업역량 */}
