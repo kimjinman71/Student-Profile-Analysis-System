@@ -1124,13 +1124,118 @@ const App = () => {
         required: ["student_profile", "admissions_verdict", "competencies", "subject_specific", "rubrics"]
       };
 
+      // 1. Dynamic Model Discovery & API key validation
+      let discoveredModels = [];
+      let usedApiVersion = 'v1beta';
+      let keyValidationError = null;
+
+      try {
+        const listUrlBeta = `https://generativelanguage.googleapis.com/v1beta/models?key=${currentApiKey}`;
+        const listResBeta = await fetch(listUrlBeta);
+        if (listResBeta.ok) {
+          const data = await listResBeta.json();
+          if (data.models && data.models.length > 0) {
+            discoveredModels = data.models
+              .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+              .map(m => m.name.replace('models/', ''));
+            usedApiVersion = 'v1beta';
+          }
+        } else {
+          try {
+            const errBody = await listResBeta.json();
+            if (errBody?.error?.message) {
+              const msg = errBody.error.message;
+              if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
+                keyValidationError = msg;
+              }
+            }
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.warn("Failed to list models via v1beta:", e);
+      }
+
+      if (discoveredModels.length === 0 && !keyValidationError) {
+        try {
+          const listUrlV1 = `https://generativelanguage.googleapis.com/v1/models?key=${currentApiKey}`;
+          const listResV1 = await fetch(listUrlV1);
+          if (listResV1.ok) {
+            const data = await listResV1.json();
+            if (data.models && data.models.length > 0) {
+              discoveredModels = data.models
+                .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''));
+              usedApiVersion = 'v1';
+            }
+          } else {
+            try {
+              const errBody = await listResV1.json();
+              if (errBody?.error?.message) {
+                const msg = errBody.error.message;
+                if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
+                  keyValidationError = msg;
+                }
+              }
+            } catch (_) {}
+          }
+        } catch (e) {
+          console.warn("Failed to list models via v1:", e);
+        }
+      }
+
+      if (keyValidationError) {
+        throw new Error(`API 키 인증 또는 활성화에 실패했습니다: ${keyValidationError}`);
+      }
+
+      let selectedModel = null;
+      if (discoveredModels.length > 0) {
+        console.log("Discovered available models:", discoveredModels, "using API version:", usedApiVersion);
+        const preferredModels = [MODEL_NAME, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+        for (const pref of preferredModels) {
+          if (discoveredModels.includes(pref)) {
+            selectedModel = pref;
+            break;
+          }
+        }
+        if (!selectedModel) {
+          const flashModel = discoveredModels.find(m => m.includes('flash') && !m.includes('tuning'));
+          if (flashModel) {
+            selectedModel = flashModel;
+          } else {
+            selectedModel = discoveredModels[0];
+          }
+        }
+      }
+
+      // 2. Fallback execution list
+      const staticConfigs = [
+        { model: MODEL_NAME, apiVersion: "v1beta" },
+        { model: MODEL_NAME, apiVersion: "v1" },
+        { model: "gemini-2.0-flash", apiVersion: "v1beta" },
+        { model: "gemini-2.0-flash", apiVersion: "v1" },
+        { model: "gemini-1.5-flash", apiVersion: "v1beta" },
+        { model: "gemini-1.5-flash", apiVersion: "v1" },
+        { model: "gemini-1.5-flash-latest", apiVersion: "v1beta" },
+        { model: "gemini-1.5-flash-latest", apiVersion: "v1" }
+      ];
+
+      const configsToTry = [];
+      if (selectedModel) {
+        configsToTry.push({ model: selectedModel, apiVersion: usedApiVersion });
+      }
+      for (const sc of staticConfigs) {
+        if (!configsToTry.some(c => c.model === sc.model && c.apiVersion === sc.apiVersion)) {
+          configsToTry.push(sc);
+        }
+      }
+
       let result = null;
       let usedModel = MODEL_NAME;
-      const fallbackModels = [MODEL_NAME, "gemini-2.0-flash", "gemini-1.5-flash"];
-      
-      for (const model of fallbackModels) {
+
+      for (let i = 0; i < configsToTry.length; i++) {
+        const config = configsToTry[i];
         try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
+          const url = `https://generativelanguage.googleapis.com/${config.apiVersion}/models/${config.model}:generateContent?key=${currentApiKey}`;
           const payload = {
             contents: [{ parts: [{ text: userPrompt }, ...fileParts] }],
             systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -1146,11 +1251,11 @@ const App = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          usedModel = model;
+          usedModel = config.model;
           break;
         } catch (fetchErr) {
-          console.warn(`Model ${model} failed:`, fetchErr);
-          if (model === fallbackModels[fallbackModels.length - 1]) {
+          console.warn(`Model config ${config.model} (${config.apiVersion}) failed:`, fetchErr);
+          if (i === configsToTry.length - 1) {
             throw fetchErr;
           }
         }
