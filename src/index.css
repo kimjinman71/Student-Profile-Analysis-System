@@ -45,3 +45,85 @@ html {
 .bg-gradient-primary {
   background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
+
+/* Print-specific CSS styles */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+  
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Make sure borders and tables are visible in print */
+  .border, .border-slate-200, .border-slate-100 {
+    border-color: #cbd5e1 !important;
+  }
+  
+  /* Ensure backgrounds print correctly */
+  .print-bg-slate-950 {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+  }
+  
+  .print-bg-blue-600 {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+  }
+  
+  .print-bg-purple-600 {
+    background-color: #9333ea !important;
+    color: #ffffff !important;
+  }
+  
+  .print-bg-teal-600 {
+    background-color: #0d9488 !important;
+    color: #ffffff !important;
+  }
+  
+  .print-bg-slate-50 {
+    background-color: #f8fafc !important;
+  }
+
+  .print-bg-slate-100 {
+    background-color: #f1f5f9 !important;
+  }
+
+  .print-bg-rose-50 {
+    background-color: #fff1f2 !important;
+  }
+
+  .print-bg-blue-50 {
+    background-color: #eff6ff !important;
+  }
+
+  .print-text-white {
+    color: #ffffff !important;
+  }
+
+  .print-text-slate-950 {
+    color: #0f172a !important;
+  }
+
+  .print-text-blue-600 {
+    color: #2563eb !important;
+  }
+
+  .print-text-purple-600 {
+    color: #9333ea !important;
+  }
+
+  .print-text-teal-600 {
+    color: #0d9488 !important;
+  }
+}

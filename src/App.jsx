@@ -35,7 +35,8 @@ import {
   Info,
   Image,
   AlertTriangle,
-  RotateCw
+  RotateCw,
+  Printer
 } from 'lucide-react';
 
 const MODEL_NAME = "gemini-2.5-flash";
@@ -1386,7 +1387,8 @@ ${JSON.stringify(analysisResult, null, 2)}
   const studentOverallGpa5 = estimate5Gpa(simulatedGpa);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600">
+    <>
+      <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600 print:hidden">
       {/* 글로벌 네비게이션 헤더 */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -1756,13 +1758,22 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <span>심층 정성리포트</span>
               </button>
               
-              <button
-                onClick={clearFile}
-                className="ml-auto text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 my-2 flex items-center gap-1.5 self-center rounded-none"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>새로운 분석 시작</span>
-              </button>
+              <div className="ml-auto flex items-center gap-2 self-center my-2">
+                <button
+                  onClick={() => window.print()}
+                  className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors border border-blue-200 hover:border-blue-500 px-4 py-2 flex items-center gap-1.5 rounded-none shadow-sm hover:shadow"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>리포트 출력하기 (A4 3장)</span>
+                </button>
+                <button
+                  onClick={clearFile}
+                  className="text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 py-2 flex items-center gap-1.5 rounded-none"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>새로운 분석 시작</span>
+                </button>
+              </div>
             </div>
 
             {/* 탭 1. 종합 판독 및 내신/대학 모의 진단 시뮬레이션 */}
@@ -2223,6 +2234,349 @@ ${JSON.stringify(analysisResult, null, 2)}
         </div>
       )}
     </div>
+
+    {/* 리포트 출력 전용 HTML 레이아웃 (A4 3장 분량) */}
+    {analysisResult && (
+      <div className="hidden print:block bg-white text-slate-900 font-sans p-0 m-0 print:text-[13px] print:leading-relaxed">
+        {/* PAGE 1: 학생 인적 정보 카드 + 학업역량 정성 심사 루브릭 및 분석 */}
+        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
+          <div>
+            {/* 학생 기본 정보 헤더 카드 */}
+            <div className="print-bg-slate-950 p-6 print:text-white mb-6 border border-slate-900">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="px-2 py-0.5 border border-white/20 text-[9px] font-black uppercase print-bg-blue-600 print-text-white">
+                      {analysisResult.student_profile.student_name || "분석대상"} 학생
+                    </span>
+                    <span className="px-2 py-0.5 border border-white/20 text-[9px] font-black uppercase">
+                      분석 진단 완료
+                    </span>
+                    <span className="text-[9px] font-bold">
+                      대상 학교유형: {analysisResult.student_profile.school_type || "일반계 고등학교"}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight print-text-white">
+                    {analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}
+                  </h2>
+                </div>
+                <div className="flex gap-4">
+                  <div className="text-right">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">내신등급</span>
+                    <span className="text-xl font-black">{studentOverallGpa.toFixed(2)} 등급</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[8px] font-bold text-slate-400 uppercase">종합사정등급</span>
+                    <span className="text-xl font-black print-text-blue-600">{resolveOverallGrade()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 학업역량 평가 */}
+            <div className="border border-slate-200 p-6 mb-6">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 print-text-blue-600" />
+                  <h3 className="text-base font-black text-slate-900">학업역량 정성 평가 리포트</h3>
+                </div>
+                <span className="text-sm font-black print-text-blue-600">평가 등급: {analysisResult.competencies?.academic?.grade || "A"} ({analysisResult.competencies?.academic?.score || 90}점)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h4 className="text-[12px] font-black text-blue-600 uppercase tracking-wider mb-2">학업역량 강점 (Strengths)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.academic?.strengths?.map((str, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-blue-500 shrink-0 font-bold">✓</span>
+                        <span>{str}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">학업역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.academic?.weaknesses?.map((weak, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-rose-500 shrink-0 font-bold">!</span>
+                        <span>{weak}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* 루브릭 테이블 */}
+              <div className="mt-4">
+                <h4 className="text-[11px] font-black text-slate-400 tracking-wider mb-2">학업역량 세부 평정 지표 루브릭 현황</h4>
+                <div className="border border-slate-200 overflow-hidden">
+                  <table className="w-full text-left border-collapse text-[10px]">
+                    <thead>
+                      <tr className="print-bg-slate-100 border-b border-slate-200">
+                        <th className="p-2 font-black text-slate-700 w-1/4">평가 범주</th>
+                        <th className="p-2 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
+                        <th className="p-2 font-black text-slate-700 text-center w-1/4">판정 결과</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic).map((item, idx) => (
+                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          {item.isFirstOfGroup && (
+                            <td className="p-2 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
+                              {item.group}
+                            </td>
+                          )}
+                          <td className="p-2 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
+                          <td className={`p-2 font-black text-center ${
+                            item.result?.includes('우수') ? 'print-text-blue-600' :
+                            item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
+                          }`}>
+                            {item.result}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: 진로역량 및 공동체역량 정성 심사 루브릭 및 분석 */}
+        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
+          <div>
+            {/* 진로역량 평가 */}
+            <div className="border border-slate-200 p-6 mb-6">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 print-text-purple-600" />
+                  <h3 className="text-base font-black text-slate-900">진로역량 정성 평가 리포트</h3>
+                </div>
+                <span className="text-sm font-black print-text-purple-600">평가 등급: {analysisResult.competencies?.career?.grade || "A"} ({analysisResult.competencies?.career?.score || 90}점)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-4">
+                <div>
+                  <h4 className="text-[12px] font-black text-purple-600 uppercase tracking-wider mb-2">진로역량 강점 (Strengths)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.career?.strengths?.map((str, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-purple-500 shrink-0 font-bold">✓</span>
+                        <span>{str}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">진로역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.career?.weaknesses?.map((weak, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-rose-500 shrink-0 font-bold">!</span>
+                        <span>{weak}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* 진로 루브릭 */}
+              <div className="border border-slate-200 overflow-hidden">
+                <table className="w-full text-left border-collapse text-[9.5px]">
+                  <thead>
+                    <tr className="print-bg-slate-100 border-b border-slate-200">
+                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
+                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
+                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career).map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                        {item.isFirstOfGroup && (
+                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
+                            {item.group}
+                          </td>
+                        )}
+                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
+                        <td className={`p-1.5 font-black text-center ${
+                          item.result?.includes('우수') ? 'print-text-purple-600' :
+                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
+                        }`}>
+                          {item.result}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 공동체역량 평가 */}
+            <div className="border border-slate-200 p-6">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 print-text-teal-600" />
+                  <h3 className="text-base font-black text-slate-900">공동체역량 정성 평가 리포트</h3>
+                </div>
+                <span className="text-sm font-black print-text-teal-600">평가 등급: {analysisResult.competencies?.community?.grade || "A"} ({analysisResult.competencies?.community?.score || 90}점)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-4">
+                <div>
+                  <h4 className="text-[12px] font-black text-teal-600 uppercase tracking-wider mb-2">공동체역량 강점 (Strengths)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.community?.strengths?.map((str, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-teal-500 shrink-0 font-bold">✓</span>
+                        <span>{str}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">공동체역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.community?.weaknesses?.map((weak, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-rose-500 shrink-0 font-bold">!</span>
+                        <span>{weak}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* 공동체 루브릭 */}
+              <div className="border border-slate-200 overflow-hidden">
+                <table className="w-full text-left border-collapse text-[9px]">
+                  <thead>
+                    <tr className="print-bg-slate-100 border-b border-slate-200">
+                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
+                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
+                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mapRubricResults(COMMUNITY_RUBRICS, analysisResult.rubrics?.community).map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                        {item.isFirstOfGroup && (
+                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
+                            {item.group}
+                          </td>
+                        )}
+                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
+                        <td className={`p-1.5 font-black text-center ${
+                          item.result?.includes('우수') ? 'print-text-teal-600' :
+                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
+                        }`}>
+                          {item.result}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 3: 교과군별 세특 정밀 판독 결과 및 입학사정관실 종합 판독 소견서 */}
+        <div className="print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
+          <div>
+            {/* 교과 세특 연계 정성 분석 판독서 */}
+            <div className="border border-slate-200 p-6 mb-6">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
+                <Library className="w-5 h-5 text-slate-800" />
+                <h3 className="text-base font-black text-slate-900">교과 세특 연계 정성 분석 판독서</h3>
+              </div>
+
+              {/* 세특 루브릭 표 */}
+              <div className="border border-slate-200 overflow-hidden mb-6">
+                <table className="w-full text-left border-collapse text-[9.5px]">
+                  <thead>
+                    <tr className="print-bg-slate-100 border-b border-slate-200">
+                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
+                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
+                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mapRubricResults(SUBJECT_RUBRICS, analysisResult.rubrics?.subject).map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                        {item.isFirstOfGroup && (
+                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
+                            {item.group}
+                          </td>
+                        )}
+                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
+                        <td className={`p-1.5 font-black text-center ${
+                          item.result?.includes('우수') ? 'print-text-blue-600' :
+                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
+                        }`}>
+                          {item.result}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 5대 핵심 교과군 분석 카드 */}
+              <div className="space-y-4">
+                {analysisResult.subject_specific?.map((item, idx) => (
+                  <div key={idx} className="border border-slate-100 p-4 print-bg-slate-50">
+                    <h4 className="text-[12px] font-black text-slate-900 mb-2 border-b border-slate-200/60 pb-1.5 flex justify-between">
+                      <span>{item.subject_group}</span>
+                      <span className="text-[10px] font-bold text-slate-400 capitalize">{item.category}</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9.5px] font-black print-text-blue-600 block mb-1">✓ 주요 강점</span>
+                        <ul className="space-y-0.5 text-slate-700 text-[10.5px]">
+                          {item.strengths?.map((str, sIdx) => (
+                            <li key={sIdx} className="leading-tight flex items-start gap-1">
+                              <span className="text-blue-500 shrink-0 font-bold">•</span>
+                              <span>{str}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <span className="text-[9.5px] font-black text-rose-600 block mb-1">! 보완 및 유의점</span>
+                        <ul className="space-y-0.5 text-slate-700 text-[10.5px]">
+                          {item.weaknesses?.map((weak, wIdx) => (
+                            <li key={wIdx} className="leading-tight flex items-start gap-1">
+                              <span className="text-rose-500 shrink-0 font-bold">•</span>
+                              <span>{weak}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 종합 판독 소견서 (Admissions Verdict) */}
+            <div className="border border-slate-200 p-6 print-bg-slate-50">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
+                <GraduationCap className="w-5 h-5 print-text-blue-600" />
+                <h3 className="text-base font-black text-slate-900">입학사정관실 종합 판독 소견서</h3>
+              </div>
+              <p className="text-[12.5px] font-semibold text-slate-800 leading-relaxed text-justify">
+                {analysisResult.admissions_verdict}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 };
 
