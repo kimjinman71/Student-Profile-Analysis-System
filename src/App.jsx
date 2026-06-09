@@ -2032,7 +2032,13 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.academic}
                     accentColor="from-blue-600 to-indigo-600"
                     iconBg="bg-blue-600"
-                  />
+                  >
+                    <RubricTable 
+                      title="학업역량 세부 평정 지표 루브릭 현황" 
+                      iconColor="text-blue-600" 
+                      rubrics={mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic)} 
+                    />
+                  </CompetencyCard>
  
                   {/* 진로역량 */}
                   <CompetencyCard 
@@ -2041,7 +2047,13 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.career}
                     accentColor="from-purple-600 to-indigo-600"
                     iconBg="bg-purple-600"
-                  />
+                  >
+                    <RubricTable 
+                      title="진로역량 세부 평정 지표 루브릭 현황" 
+                      iconColor="text-purple-600" 
+                      rubrics={mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career)} 
+                    />
+                  </CompetencyCard>
  
                   {/* 공동체역량 */}
                   <CompetencyCard 
@@ -2050,7 +2062,13 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.community}
                     accentColor="from-teal-600 to-emerald-600"
                     iconBg="bg-teal-600"
-                  />
+                  >
+                    <RubricTable 
+                      title="공동체역량 세부 평정 지표 루브릭 현황" 
+                      iconColor="text-teal-600" 
+                      rubrics={mapRubricResults(COMMUNITY_RUBRICS, analysisResult.rubrics?.community)} 
+                    />
+                  </CompetencyCard>
                 </div>
 
                 {/* 교과군별 세부능력 특기사항 정밀 진단 */}
@@ -2115,6 +2133,13 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </div>
 
 
+
+                  {/* 과목별 세특 판단 기준 루브릭 현황 */}
+                  <RubricTable 
+                    title="과목별 세특 판단 기준 루브릭 현황" 
+                    iconColor="text-blue-600" 
+                    rubrics={mapRubricResults(SUBJECT_RUBRICS, analysisResult.rubrics?.subject)} 
+                  />
 
                   {/* 세특 판독 결과 리스트 매핑 */}
                   <div className="space-y-6">
