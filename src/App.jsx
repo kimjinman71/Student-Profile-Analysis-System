@@ -2032,13 +2032,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.academic}
                     accentColor="from-blue-600 to-indigo-600"
                     iconBg="bg-blue-600"
-                  >
-                    <RubricTable 
-                      title="학업역량 세부 평정 지표 루브릭 현황" 
-                      iconColor="text-blue-600" 
-                      rubrics={mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic)} 
-                    />
-                  </CompetencyCard>
+                  />
  
                   {/* 진로역량 */}
                   <CompetencyCard 
@@ -2047,13 +2041,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.career}
                     accentColor="from-purple-600 to-indigo-600"
                     iconBg="bg-purple-600"
-                  >
-                    <RubricTable 
-                      title="진로역량 세부 평정 지표 루브릭 현황" 
-                      iconColor="text-purple-600" 
-                      rubrics={mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career)} 
-                    />
-                  </CompetencyCard>
+                  />
  
                   {/* 공동체역량 */}
                   <CompetencyCard 
@@ -2062,13 +2050,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                     data={analysisResult.competencies?.community}
                     accentColor="from-teal-600 to-emerald-600"
                     iconBg="bg-teal-600"
-                  >
-                    <RubricTable 
-                      title="공동체역량 세부 평정 지표 루브릭 현황" 
-                      iconColor="text-teal-600" 
-                      rubrics={mapRubricResults(COMMUNITY_RUBRICS, analysisResult.rubrics?.community)} 
-                    />
-                  </CompetencyCard>
+                  />
                 </div>
 
                 {/* 교과군별 세부능력 특기사항 정밀 진단 */}
@@ -2132,12 +2114,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                     </div>
                   </div>
 
-                  {/* 과목별 세특 판단 기준 루브릭 현황 */}
-                  <RubricTable 
-                    title="과목별 세특 판단 기준 루브릭 현황" 
-                    iconColor="text-blue-600" 
-                    rubrics={mapRubricResults(SUBJECT_RUBRICS, analysisResult.rubrics?.subject)} 
-                  />
+
 
                   {/* 세특 판독 결과 리스트 매핑 */}
                   <div className="space-y-6">
@@ -2285,39 +2262,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <span className="text-sm font-black print-text-blue-600">평가 등급: {analysisResult.competencies?.academic?.grade || "A"} ({analysisResult.competencies?.academic?.score || 90}점)</span>
               </div>
 
-              {/* 루브릭 테이블 */}
-              <div className="mb-6">
-                <h4 className="text-[11px] font-black text-slate-400 tracking-wider mb-2">학업역량 세부 평정 지표 루브릭 현황</h4>
-                <div className="border border-slate-200 overflow-hidden">
-                  <table className="w-full text-left border-collapse print-table-compact">
-                    <thead>
-                      <tr className="print-bg-slate-100 border-b border-slate-200">
-                        <th className="p-2 font-black text-slate-700 w-1/4">평가 범주</th>
-                        <th className="p-2 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
-                        <th className="p-2 font-black text-slate-700 text-center w-1/4">판정 결과</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mapRubricResults(ACADEMIC_RUBRICS, analysisResult.rubrics?.academic).map((item, idx) => (
-                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
-                          {item.isFirstOfGroup && (
-                            <td className="p-2 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
-                              {item.group}
-                            </td>
-                          )}
-                          <td className="p-2 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
-                          <td className={`p-2 font-black text-center ${
-                            item.result?.includes('우수') ? 'print-text-blue-600' :
-                            item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
-                          }`}>
-                            {item.result}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+
               
               <div className="grid grid-cols-2 gap-6">
                 <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
@@ -2366,36 +2311,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <span className="text-sm font-black print-text-purple-600">평가 등급: {analysisResult.competencies?.career?.grade || "A"} ({analysisResult.competencies?.career?.score || 90}점)</span>
               </div>
 
-              {/* 진로 루브릭 */}
-              <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse print-table-compact">
-                  <thead>
-                    <tr className="print-bg-slate-100 border-b border-slate-200">
-                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
-                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
-                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mapRubricResults(CAREER_RUBRICS, analysisResult.rubrics?.career).map((item, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
-                        {item.isFirstOfGroup && (
-                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
-                            {item.group}
-                          </td>
-                        )}
-                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
-                        <td className={`p-1.5 font-black text-center ${
-                          item.result?.includes('우수') ? 'print-text-purple-600' :
-                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
-                        }`}>
-                          {item.result}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
               
               <div className="grid grid-cols-2 gap-6">
                 <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
@@ -2439,36 +2355,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <span className="text-sm font-black print-text-teal-600">평가 등급: {analysisResult.competencies?.community?.grade || "A"} ({analysisResult.competencies?.community?.score || 90}점)</span>
               </div>
 
-              {/* 공동체 루브릭 */}
-              <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse print-table-compact">
-                  <thead>
-                    <tr className="print-bg-slate-100 border-b border-slate-200">
-                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
-                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
-                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mapRubricResults(COMMUNITY_RUBRICS, analysisResult.rubrics?.community).map((item, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
-                        {item.isFirstOfGroup && (
-                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
-                            {item.group}
-                          </td>
-                        )}
-                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
-                        <td className={`p-1.5 font-black text-center ${
-                          item.result?.includes('우수') ? 'print-text-teal-600' :
-                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
-                        }`}>
-                          {item.result}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
               
               <div className="grid grid-cols-2 gap-6">
                 <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
@@ -2514,36 +2401,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <h3 className="text-base font-black text-slate-900">교과 세특 연계 정성 분석 판독서</h3>
               </div>
 
-              {/* 세특 루브릭 표 */}
-              <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse print-table-compact">
-                  <thead>
-                    <tr className="print-bg-slate-100 border-b border-slate-200">
-                      <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
-                      <th className="p-1.5 font-black text-slate-700 w-1/2">세부 핵심 평정 지표 (Admissions Rubric)</th>
-                      <th className="p-1.5 font-black text-slate-700 text-center w-1/4">판정 결과</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mapRubricResults(SUBJECT_RUBRICS, analysisResult.rubrics?.subject).map((item, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
-                        {item.isFirstOfGroup && (
-                          <td className="p-1.5 font-black text-slate-900 border-r border-slate-100 align-middle" rowSpan={item.groupSpan}>
-                            {item.group}
-                          </td>
-                        )}
-                        <td className="p-1.5 font-medium text-slate-700 border-r border-slate-100">{item.metric}</td>
-                        <td className={`p-1.5 font-black text-center ${
-                          item.result?.includes('우수') ? 'print-text-blue-600' :
-                          item.result?.includes('보완') ? 'text-rose-600' : 'text-slate-700'
-                        }`}>
-                          {item.result}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
 
               {/* 5대 핵심 교과군 분석 카드 */}
               <div className="space-y-4">
