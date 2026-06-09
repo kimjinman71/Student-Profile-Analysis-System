@@ -45,3 +45,60 @@ html {
 .bg-gradient-primary {
   background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
+
+/* Print-specific CSS styles */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 12mm 12mm 12mm;
+  }
+  
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force background colors to show in print preview */
+  .print-bg-slate-950 {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+  }
+  
+  .print-bg-slate-50 {
+    background-color: #f8fafc !important;
+  }
+
+  .print-bg-blue-50 {
+    background-color: #eff6ff !important;
+  }
+
+  .print-bg-rose-50 {
+    background-color: #fff1f2 !important;
+  }
+
+  .print-border-blue-200 {
+    border-color: #bfdbfe !important;
+  }
+
+  .print-border-rose-200 {
+    border-color: #fecdd3 !important;
+  }
+
+  .print-text-blue-900 {
+    color: #1e3a8a !important;
+  }
+
+  .print-text-rose-900 {
+    color: #881337 !important;
+  }
+
+  .print-text-blue-600 {
+    color: #2563eb !important;
+  }
+
+  .print-text-rose-600 {
+    color: #e11d48 !important;
+  }
+}

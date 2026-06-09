@@ -35,7 +35,8 @@ import {
   Info,
   Image,
   AlertTriangle,
-  RotateCw
+  RotateCw,
+  Printer
 } from 'lucide-react';
 
 const MODEL_NAME = "gemini-2.5-flash";
@@ -444,6 +445,34 @@ const AnalysisBox = ({ type, data }) => {
         {data?.map((item, i) => (
           <li key={i} className={`text-[14.5px] font-semibold leading-relaxed flex gap-3 ${textColor}`}>
             <div className={`w-1.5 h-1.5 rounded-none ${dotColor} mt-2 shrink-0`} />
+            <span>{typeof item === 'string' ? item.replace('•', '').trim() : ''}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const PrintAnalysisBox = ({ type, data }) => {
+  const isStrength = type === 'strength';
+  const bgColor = isStrength ? 'bg-blue-50/40 print-bg-blue-50' : 'bg-rose-50/40 print-bg-rose-50';
+  const borderColor = isStrength ? 'border-blue-200/60 print-border-blue-200' : 'border-rose-200/60 print-border-rose-200';
+  const iconColor = isStrength ? 'text-blue-600 print-text-blue-600' : 'text-rose-600 print-text-rose-600';
+  const titleColor = isStrength ? 'text-blue-900 print-text-blue-900' : 'text-rose-900 print-text-rose-900';
+  const dotColor = isStrength ? 'bg-blue-500' : 'bg-rose-500';
+  const title = isStrength ? '강점 성취 분석' : '핵심 보완 포인트';
+  const Icon = isStrength ? CheckCircle : AlertCircle;
+
+  return (
+    <div className={`${bgColor} border ${borderColor} rounded-none p-4 font-normal text-slate-800`}>
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className={`w-4 h-4 ${iconColor}`} />
+        <span className={`text-[13px] font-black ${titleColor} tracking-tight`}>{title}</span>
+      </div>
+      <ul className="space-y-2">
+        {data?.map((item, i) => (
+          <li key={i} className="text-[12px] font-semibold leading-relaxed flex gap-2">
+            <div className={`w-1.5 h-1.5 rounded-none ${dotColor} mt-1.5 shrink-0`} />
             <span>{typeof item === 'string' ? item.replace('•', '').trim() : ''}</span>
           </li>
         ))}
@@ -1386,7 +1415,8 @@ ${JSON.stringify(analysisResult, null, 2)}
   const studentOverallGpa5 = estimate5Gpa(simulatedGpa);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600">
+    <>
+      <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600 print:hidden">
       {/* 글로벌 네비게이션 헤더 */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -1756,13 +1786,24 @@ ${JSON.stringify(analysisResult, null, 2)}
                 <span>심층 정성리포트</span>
               </button>
               
-              <button
-                onClick={clearFile}
-                className="ml-auto text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 my-2 flex items-center gap-1.5 self-center rounded-none"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>새로운 분석 시작</span>
-              </button>
+              <div className="ml-auto flex items-center gap-2 my-2 self-center">
+                {activeResultTab === 'report' && (
+                  <button
+                    onClick={() => window.print()}
+                    className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors uppercase border border-blue-200 hover:border-blue-400 px-4 py-2 flex items-center gap-1.5 rounded-none bg-blue-50/50"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>리포트 출력하기</span>
+                  </button>
+                )}
+                <button
+                  onClick={clearFile}
+                  className="text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 py-2 flex items-center gap-1.5 rounded-none"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>새로운 분석 시작</span>
+                </button>
+              </div>
             </div>
 
             {/* 탭 1. 종합 판독 및 내신/대학 모의 진단 시뮬레이션 */}
@@ -2222,7 +2263,158 @@ ${JSON.stringify(analysisResult, null, 2)}
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      {/* Print-only Layout */}
+      {analysisResult && (
+        <div className="hidden print:block font-sans text-slate-900 bg-white p-2">
+          {/* 1. 업로드한 이미지 부분 (Header Summary) */}
+          <div className="bg-slate-950 text-white p-8 shadow-md flex flex-row items-center justify-between gap-6 relative overflow-hidden rounded-none print-bg-slate-950 mb-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                {analysisResult.student_profile.student_name && (
+                  <span className="px-2.5 py-1 bg-blue-600 text-white text-[10px] font-black tracking-wider uppercase rounded-none">
+                    {analysisResult.student_profile.student_name} 학생
+                  </span>
+                )}
+                <span className="px-2.5 py-1 bg-blue-600/30 text-blue-300 border border-blue-500/20 text-[10px] font-black tracking-widest uppercase rounded-none">
+                  분석 진단 완료
+                </span>
+                <span className="text-[10px] font-black text-slate-400 tracking-wider">
+                  대상 학교유형: {analysisResult.student_profile.school_type || "일반계 고등학교"}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">
+                  {analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}
+                </h2>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-6 shrink-0">
+              <div className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-none">
+                <span className="block text-[9px] font-black text-slate-400 tracking-widest mb-0.5">입력 내신등급</span>
+                <span className="text-2xl font-black text-white tracking-tight">
+                  {studentOverallGpa.toFixed(2)}
+                  <span className="text-xs font-bold text-slate-500 ml-0.5">등급</span>
+                </span>
+              </div>
+              <div className="h-8 w-px bg-slate-800"></div>
+              <div className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-none">
+                <span className="block text-[9px] font-black text-slate-400 tracking-widest mb-0.5">종합 사정등급</span>
+                <span className="text-2xl font-black text-blue-400 tracking-tight">{resolveOverallGrade()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. 학업역량 강점 및 보완 포인트 */}
+          <div className="border border-slate-200 p-5 mb-5 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-black text-slate-900">학업역량 정성 진단</h3>
+              </div>
+              <div className="text-xs font-bold text-slate-500">
+                평가 등급: <span className="font-black text-blue-600 text-sm">{analysisResult.competencies?.academic?.grade}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <PrintAnalysisBox type="strength" data={analysisResult.competencies?.academic?.strengths} />
+              <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.academic?.weaknesses} />
+            </div>
+          </div>
+
+          {/* 3. 진로역량 강점 및 보완 포인트 */}
+          <div className="border border-slate-200 p-5 mb-5 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-600" />
+                <h3 className="text-base font-black text-slate-900">진로역량 정성 진단</h3>
+              </div>
+              <div className="text-xs font-bold text-slate-500">
+                평가 등급: <span className="font-black text-purple-600 text-sm">{analysisResult.competencies?.career?.grade}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <PrintAnalysisBox type="strength" data={analysisResult.competencies?.career?.strengths} />
+              <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.career?.weaknesses} />
+            </div>
+          </div>
+
+          {/* 4. 공동체역량 강점 및 보완 포인트 */}
+          <div className="border border-slate-200 p-5 mb-5 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-teal-600" />
+                <h3 className="text-base font-black text-slate-900">공동체역량 정성 진단</h3>
+              </div>
+              <div className="text-xs font-bold text-slate-500">
+                평가 등급: <span className="font-black text-teal-600 text-sm">{analysisResult.competencies?.community?.grade}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <PrintAnalysisBox type="strength" data={analysisResult.competencies?.community?.strengths} />
+              <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.community?.weaknesses} />
+            </div>
+          </div>
+
+          {/* 5. 교과 세특 연계 정성 분석 판독서 */}
+          <div className="border border-slate-200 p-5 mb-5 bg-white">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-4">
+              <Library className="w-5 h-5 text-slate-800" />
+              <h3 className="text-base font-black text-slate-900">교과 세특 연계 정성 분석 판독서</h3>
+            </div>
+            
+            <div className="space-y-4">
+              {[
+                { key: 'korean', name: '국어교과' },
+                { key: 'math', name: '수학교과' },
+                { key: 'english', name: '영어교과' },
+                { key: 'social', name: '사회교과' },
+                { key: 'science', name: '과학교과' }
+              ].map((subj) => {
+                const matchedItems = analysisResult.subject_specific?.filter(item => {
+                  const cat = item.category?.toLowerCase() || "";
+                  const group = item.subject_group || "";
+                  if (subj.key === "korean") return cat === "korean" || group.includes("국어");
+                  if (subj.key === "math") return cat === "math" || group.includes("수학");
+                  if (subj.key === "english") return cat === "english" || group.includes("영어");
+                  if (subj.key === "social") return cat === "social" || group.includes("사회");
+                  if (subj.key === "science") return cat === "science" || group.includes("과학");
+                  return false;
+                }) || [];
+
+                if (matchedItems.length === 0) return null;
+
+                return (
+                  <div key={subj.key} className="border border-slate-100 p-4 bg-slate-50/50 print-bg-slate-50">
+                    <h4 className="text-[13px] font-black text-slate-950 mb-3 border-b border-slate-200/60 pb-1.5 flex justify-between">
+                      <span>{subj.name}</span>
+                      <span className="text-[9.5px] font-bold text-slate-400 capitalize">학업/세특 분석</span>
+                    </h4>
+                    <div className="space-y-4">
+                      {matchedItems.map((item, idx) => (
+                        <div key={idx} className="space-y-2">
+                          {matchedItems.length > 1 && (
+                            <div className="text-[11px] font-black text-slate-600">
+                              └ {item.subject_group}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <PrintAnalysisBox type="strength" data={item?.strengths} />
+                            <PrintAnalysisBox type="weakness" data={item?.weaknesses} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
