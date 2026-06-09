@@ -1016,7 +1016,8 @@ const App = () => {
     });
   };
 
-  const analyzeStudentRecord = async () => {
+  const analyzeStudentRecord = async (isReParseVal = false) => {
+    const isReParse = typeof isReParseVal === 'boolean' ? isReParseVal : false;
     if (files.length === 0) {
       setError('분석할 파일을 업로드해 주세요.');
       return;
@@ -1030,6 +1031,9 @@ const App = () => {
 
     setLoading(true);
     setError(null);
+    if (!isReParse) {
+      setAnalysisResult(null);
+    }
 
     const selectedMajorText = majorMeta[targetMajor].label;
 
@@ -1084,7 +1088,17 @@ const App = () => {
   - 학업/진로/공동체 각 역량별 강점(strengths) 3개와 보완점(weaknesses) 4개 역시 학생부의 서술과 내신 정량 등급을 유기적으로 반영하여 구체적이고 현실적으로 추출하십시오.
   - 루브릭 현황(rubrics)의 총 68개 각 평정 문항은 학생의 실제 활동 깊이와 수준을 상세하게 심사하여 타당성 있는 등급('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')을 정확히 매핑하십시오.`;
 
-    const userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 3개, 보완점 4개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
+    let userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 3개, 보완점 4개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
+    if (isReParse && analysisResult) {
+      userPrompt = `[중요: 누락 데이터 집중 복원 요청]
+이전에 생성된 불완전한 정성 분석 결과(JSON)는 다음과 같습니다:
+${JSON.stringify(analysisResult, null, 2)}
+
+위의 이전 결과에서 강점(strengths)이나 보완점(weaknesses)이 비어있거나 누락된 부분을 감지하십시오.
+업로드한 원본 생활기록부 문서를 정밀하게 재독해하여, 오직 비어있거나 누락된 항목들만 정확히 채워 넣으십시오.
+기존에 정상적으로 이미 채워져 있는 텍스트 항목들은 임의로 내용을 변경하거나 지우지 말고 그대로 유지(복사)하여 리턴해야 합니다.
+학업역량, 진로역량, 공동체역량의 강점(3개)/보완점(4개), 그리고 5대 교과군별 강점(3개)/보완점(4개)이 누락 없이 가득 차 있는 완전한 JSON 결과물을 재생성해 주십시오.`;
+    }
 
     try {
       // Convert all files to base64 in parallel
@@ -1687,7 +1701,7 @@ const App = () => {
                 <div className="space-y-3 mt-8">
                   {files.length > 0 && (
                     <button
-                      onClick={analyzeStudentRecord}
+                      onClick={() => analyzeStudentRecord(false)}
                       className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white font-black text-[15px] transition-all duration-300 flex items-center justify-center gap-2 rounded-none"
                     >
                       <Sparkles className="w-5 h-5" />
@@ -2054,7 +2068,7 @@ const App = () => {
                       </div>
                     </div>
                     <button
-                      onClick={analyzeStudentRecord}
+                      onClick={() => analyzeStudentRecord(true)}
                       disabled={loading}
                       className="px-5 py-3.5 bg-rose-600 hover:bg-slate-900 text-white font-black text-xs transition-all flex items-center gap-2 rounded-none shadow-sm shrink-0 uppercase tracking-wider"
                     >
