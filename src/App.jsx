@@ -1193,8 +1193,7 @@ const App = () => {
       const staticConfigs = [
         { model: MODEL_NAME, apiVersion: "v1beta" },
         { model: "gemini-2.0-flash", apiVersion: "v1beta" },
-        { model: "gemini-1.5-flash", apiVersion: "v1beta" },
-        { model: "gemini-1.5-flash-latest", apiVersion: "v1beta" }
+        { model: "gemini-1.5-flash", apiVersion: "v1beta" }
       ];
 
       const configsToTry = [];
@@ -1233,6 +1232,12 @@ const App = () => {
           break;
         } catch (fetchErr) {
           console.warn(`Model config ${config.model} (${config.apiVersion}) failed:`, fetchErr);
+          // If the error is a quota limit (429), billing/permission issue (403), or invalid payload/bad request (400),
+          // continuing to try other models will not resolve the issue and will only mask the true error message.
+          // Therefore, we immediately throw the error if it is not a 404 (Not Found).
+          if (fetchErr.status && fetchErr.status !== 404) {
+            throw fetchErr;
+          }
           if (i === configsToTry.length - 1) {
             throw fetchErr;
           }
