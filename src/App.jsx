@@ -954,6 +954,59 @@ const App = () => {
     setError(null);
   };
 
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      if (file.size < 1024 * 1024) {
+        resolve(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_WIDTH = 1800;
+          const MAX_HEIGHT = 1800;
+          if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+            if (width > height) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            } else {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+            resolve(compressedFile);
+          }, 'image/jpeg', 0.82);
+        };
+        img.onerror = () => resolve(file);
+      };
+      reader.onerror = () => resolve(file);
+    });
+  };
+
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1036,10 +1089,19 @@ const App = () => {
     try {
       // Convert all files to base64 in parallel
       const fileDataPromises = files.map(async (f) => {
-        const base64Data = await fileToBase64(f);
+        let fileToProcess = f;
+        const isImage = f.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name);
+        if (isImage) {
+          try {
+            fileToProcess = await compressImage(f);
+          } catch (compressErr) {
+            console.warn("Failed to compress image, using original:", compressErr);
+          }
+        }
+        const base64Data = await fileToBase64(fileToProcess);
         return {
           inlineData: {
-            mimeType: f.type || (f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+            mimeType: fileToProcess.type || (fileToProcess.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
             data: base64Data
           }
         };
