@@ -1347,17 +1347,17 @@ JSON Schema:
 설명의 어조는 부드러우면서도 대학 입학사정관실 고유의 권위 있고 학술적인 전문 톤을 유지하십시오.
 
 [입력 정보]
-- 학생명: ${personalData.student_name}
-- 고교 유형: ${schoolType}
-- 내신 등급: ${estimatedGpa}
-- 지원 희망 계열: ${selectedMajorText}
-- 학업 및 세특 분석 결과: ${JSON.stringify(academicData)}
-- 창의적체험활동 분석 결과: ${JSON.stringify(extracurricularData)}
+- 학생명: \${personalData.student_name}
+- 고교 유형: \${schoolType}
+- 내신 등급: \${estimatedGpa}
+- 지원 희망 계열: \${selectedMajorText}
+- 학업 및 세특 분석 결과: \${JSON.stringify(academicData)}
+- 창의적체험활동 분석 결과: \${JSON.stringify(extracurricularData)}
 
 [핵심 평가 지침 - 등급 및 점수 산출]
 1. 미사여구(노이즈) 필터링 영향:
-   - 학업역량 노이즈 단어 개수: ${academicData.noise_count}
-   - 창체/활동 노이즈 단어 개수: ${extracurricularData.noise_count}
+   - 학업역량 노이즈 단어 개수: \${academicData.noise_count}
+   - 창체/활동 노이즈 단어 개수: \${extracurricularData.noise_count}
    - 이 노이즈 개수의 합이 높을수록(예: 합계가 3개 이상 감점 시작, 6개 이상 시 등급 1~2단계 하향) 종합평가 등급(competencies의 academic, career, community 등급)과 점수(score)를 크게 감점하십시오.
    - 반대로, [동기 -> 구체적 역량 활동 -> 결과 및 변화] 구조가 뚜렷하여 유효한 기록이 많다면 긍정적 영향으로 높은 등급과 점수를 부여하십시오.
    - 각 루브릭 평정 판정결과는 다소 냉정하고 보수적으로 재평가/반영해 주십시오.
@@ -1378,38 +1378,38 @@ JSON Schema:
 JSON Schema:
 {
   "student_profile": {
-    "student_name": "${personalData.student_name}",
-    "estimated_gpa": "${estimatedGpa}",
-    "major_track": "${selectedMajorText}",
-    "school_type": "${schoolType}"
+    "student_name": "\${personalData.student_name}",
+    "estimated_gpa": "\${estimatedGpa}",
+    "major_track": "\${selectedMajorText}",
+    "school_type": "\${schoolType}"
   },
   "admissions_verdict": "종합 소견서 문단",
   "competencies": {
     "academic": {
       "score": 85, // 감점 규칙 적용된 정량 점수
       "grade": "B+", // 감점 규칙 적용된 등급
-      "strengths": ${JSON.stringify(academicData.academic.strengths)},
-      "weaknesses": ${JSON.stringify(academicData.academic.weaknesses)}
+      "strengths": \${JSON.stringify(academicData.academic.strengths)},
+      "weaknesses": \${JSON.stringify(academicData.academic.weaknesses)}
     },
     "career": {
       "score": 80,
       "grade": "B",
-      "strengths": ${JSON.stringify(extracurricularData.career.strengths)},
-      "weaknesses": ${JSON.stringify(extracurricularData.career.weaknesses)}
+      "strengths": \${JSON.stringify(extracurricularData.career.strengths)},
+      "weaknesses": \${JSON.stringify(extracurricularData.career.weaknesses)}
     },
     "community": {
       "score": 75,
       "grade": "B-",
-      "strengths": ${JSON.stringify(extracurricularData.community.strengths)},
-      "weaknesses": ${JSON.stringify(extracurricularData.community.weaknesses)}
+      "strengths": \${JSON.stringify(extracurricularData.community.strengths)},
+      "weaknesses": \${JSON.stringify(extracurricularData.community.weaknesses)}
     }
   },
-  "subject_specific": ${JSON.stringify(academicData.subject_specific)},
+  "subject_specific": \${JSON.stringify(academicData.subject_specific)},
   "rubrics": {
-    "academic": ${JSON.stringify(academicData.academic.rubrics)},
-    "career": ${JSON.stringify(extracurricularData.career.rubrics)},
-    "community": ${JSON.stringify(extracurricularData.community.rubrics)},
-    "subject": ${JSON.stringify(academicData.subject_rubrics)}
+    "academic": \${JSON.stringify(academicData.academic.rubrics)},
+    "career": \${JSON.stringify(extracurricularData.career.rubrics)},
+    "community": \${JSON.stringify(extracurricularData.community.rubrics)},
+    "subject": \${JSON.stringify(academicData.subject_rubrics)}
   }
 }`;
 
@@ -1418,9 +1418,9 @@ JSON Schema:
       if (isReParse && analysisResult) {
         synthesisUserPrompt = `[중요: 누락 데이터 집중 복원 및 기존 데이터 보존 요청]
 이전에 생성된 불완전한 정성 분석 결과(JSON)는 다음과 같습니다:
-${JSON.stringify(analysisResult, null, 2)}
+\${JSON.stringify(analysisResult, null, 2)}
 
-위의 이전 결과에서 강점(strengths)이나 보완점(weaknesses)이 비어있거나 누락된 부분을 감지하고, 이번에 새로 분석된 데이터(${JSON.stringify(academicData)} 및 ${JSON.stringify(extracurricularData)})를 활용해 누락된 부분들만 집중적으로 채워 넣으십시오.
+위의 이전 결과에서 강점(strengths)이나 보완점(weaknesses)이 비어있거나 누락된 부분을 감지하고, 이번에 새로 분석된 데이터(\${JSON.stringify(academicData)} 및 \${JSON.stringify(extracurricularData)})를 활용해 누락된 부분들만 집중적으로 채워 넣으십시오.
 기존에 정상적으로 이미 채워져 있는 텍스트 항목들은 임의로 내용을 변경하거나 지우지 말고 그대로 유지(복사)하여 리턴해야 합니다.
 학업역량, 진로역량, 공동체역량의 강점(3개)/보완점(4개), 그리고 5대 교과군별 강점(3개)/보완점(4개)이 누락 없이 가득 차 있는 완벽한 최종 JSON 결과물을 리턴해 주십시오.`;
       }
