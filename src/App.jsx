@@ -1265,7 +1265,11 @@ ${JSON.stringify(analysisResult, null, 2)}
       parsedData.student_profile.school_type = schoolType;
       parsedData.student_profile.student_name = parsedData.student_profile.student_name || "분석대상";
       setAnalysisResult(parsedData);
-      setActiveResultTab('admission'); // 기본적으로 새로운 '2페이지(진단 및 예측)'를 띄움
+      if (isReParse) {
+        setActiveResultTab('report'); // 재파싱 후에는 '심층 정성리포트' 섹션 탭으로 이동
+      } else {
+        setActiveResultTab('admission'); // 최초 분석 완료 후에는 기본적으로 '진단 및 예측' 탭으로 이동
+      }
     } catch (err) {
       console.error(err);
       setError(`생활기록부 정밀 분석 중 오류가 발생했습니다. (${err.message}). API 키 유효성 및 네트워크 상태를 확인해 주세요. 우측 하단의 데모 데이터 분석 시뮬레이션을 사용하여 가독성 테스트를 즉시 수행할 수 있습니다.`);
