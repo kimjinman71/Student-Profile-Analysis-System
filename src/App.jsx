@@ -987,6 +987,9 @@ const App = () => {
             resolve(file);
             return;
           }
+          // Enable hardware-accelerated high-quality image smoothing to preserve sharp text/OCR readability
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
           canvas.toBlob((blob) => {
             if (!blob) {
@@ -999,7 +1002,7 @@ const App = () => {
             });
             console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(compressedFile);
-          }, 'image/jpeg', 0.82);
+          }, 'image/jpeg', 0.85); // 85% quality provides optimal sharpness for text/OCR reading
         };
         img.onerror = () => resolve(file);
       };
@@ -1203,42 +1206,66 @@ ${JSON.stringify(analysisResult, null, 2)}
         required: ["student_profile", "admissions_verdict", "competencies", "subject_specific", "rubrics"]
       };
 
-      // 1. Dynamic Model Discovery & API key validation
+      // 1. Dynamic Model Discovery & API key validation (with caching to eliminate discovery latency on subsequent calls)
       let discoveredModels = [];
       let usedApiVersion = 'v1beta';
       let keyValidationError = null;
 
+      const cacheKey = `gemini_discovered_${currentApiKey.slice(-8)}`;
+      let cachedDiscovered = null;
       try {
-        const listUrlBeta = `https://generativelanguage.googleapis.com/v1beta/models?key=${currentApiKey}`;
-        const listResBeta = await fetch(listUrlBeta);
-        if (listResBeta.ok) {
-          const data = await listResBeta.json();
-          if (data.models && data.models.length > 0) {
-            discoveredModels = data.models
-              .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-              .map(m => m.name.replace('models/', ''));
-            usedApiVersion = 'v1beta';
-          }
-        } else {
-          try {
-            const errBody = await listResBeta.json();
-            if (errBody?.error?.message) {
-              const msg = errBody.error.message;
-              if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
-                keyValidationError = msg;
-              } else {
-                keyValidationError = `Listing models failed: ${msg}`;
-              }
-            } else {
-              keyValidationError = `HTTP ${listResBeta.status}`;
-            }
-          } catch (_) {
-            keyValidationError = `HTTP ${listResBeta.status}`;
-          }
+        const cachedStr = localStorage.getItem(cacheKey);
+        if (cachedStr) {
+          cachedDiscovered = JSON.parse(cachedStr);
         }
       } catch (e) {
-        console.warn("Failed to list models via v1beta:", e);
-        keyValidationError = e.message;
+        console.warn("Failed to read discovered models cache:", e);
+      }
+
+      if (cachedDiscovered && cachedDiscovered.models?.length > 0) {
+        discoveredModels = cachedDiscovered.models;
+        usedApiVersion = cachedDiscovered.apiVersion || 'v1beta';
+      } else {
+        try {
+          const listUrlBeta = `https://generativelanguage.googleapis.com/v1beta/models?key=${currentApiKey}`;
+          const listResBeta = await fetch(listUrlBeta);
+          if (listResBeta.ok) {
+            const data = await listResBeta.json();
+            if (data.models && data.models.length > 0) {
+              discoveredModels = data.models
+                .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''));
+              usedApiVersion = 'v1beta';
+              
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                  models: discoveredModels,
+                  apiVersion: usedApiVersion,
+                  timestamp: Date.now()
+                }));
+              } catch (_) {}
+            }
+          } else {
+            try {
+              const errBody = await listResBeta.json();
+              if (errBody?.error?.message) {
+                const msg = errBody.error.message;
+                if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
+                  keyValidationError = msg;
+                } else {
+                  keyValidationError = `Listing models failed: ${msg}`;
+                }
+              } else {
+                keyValidationError = `HTTP ${listResBeta.status}`;
+              }
+            } catch (_) {
+              keyValidationError = `HTTP ${listResBeta.status}`;
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to list models via v1beta:", e);
+          keyValidationError = e.message;
+        }
       }
 
       if (keyValidationError && discoveredModels.length === 0) {
