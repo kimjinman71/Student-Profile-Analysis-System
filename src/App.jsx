@@ -954,9 +954,10 @@ const App = () => {
     setError(null);
   };
 
-  const compressImage = (file) => {
+  const compressImage = (file, isLargePayload = false) => {
     return new Promise((resolve) => {
-      if (file.size < 1024 * 1024) {
+      const sizeThreshold = isLargePayload ? 500 * 1024 : 1024 * 1024;
+      if (file.size < sizeThreshold) {
         resolve(file);
         return;
       }
@@ -969,8 +970,8 @@ const App = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const MAX_WIDTH = 1800;
-          const MAX_HEIGHT = 1800;
+          const MAX_WIDTH = isLargePayload ? 1200 : 1800;
+          const MAX_HEIGHT = isLargePayload ? 1200 : 1800;
           if (width > MAX_WIDTH || height > MAX_HEIGHT) {
             if (width > height) {
               height = Math.round((height * MAX_WIDTH) / width);
@@ -1002,7 +1003,7 @@ const App = () => {
             });
             console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(compressedFile);
-          }, 'image/jpeg', 0.85); // 85% quality provides optimal sharpness for text/OCR reading
+          }, 'image/jpeg', isLargePayload ? 0.75 : 0.85); // 85% quality provides optimal sharpness, 75% for large payloads
         };
         img.onerror = () => resolve(file);
       };
@@ -1105,12 +1106,18 @@ ${JSON.stringify(analysisResult, null, 2)}
 
     try {
       // Convert all files to base64 in parallel
+      const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
+      const isLargePayload = totalSize > 8 * 1024 * 1024; // 8MB threshold
+      if (isLargePayload) {
+        console.log(`Large payload detected (${(totalSize / 1024 / 1024).toFixed(2)}MB). Enabling aggressive image compression.`);
+      }
+
       const fileDataPromises = files.map(async (f) => {
         let fileToProcess = f;
         const isImage = f.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name);
         if (isImage) {
           try {
-            fileToProcess = await compressImage(f);
+            fileToProcess = await compressImage(f, isLargePayload);
           } catch (compressErr) {
             console.warn("Failed to compress image, using original:", compressErr);
           }
@@ -1269,7 +1276,7 @@ ${JSON.stringify(analysisResult, null, 2)}
       }
 
       if (keyValidationError && discoveredModels.length === 0) {
-        throw new Error(`API 키 인증 또는 활성화에 실패했습니다: ${keyValidationError}`);
+        console.warn(`API 키 확인 경고 (정적 모델 목록으로 계속 진행): ${keyValidationError}`);
       }
 
       let selectedModel = null;
@@ -1335,12 +1342,7 @@ ${JSON.stringify(analysisResult, null, 2)}
           break;
         } catch (fetchErr) {
           console.warn(`Model config ${config.model} (${config.apiVersion}) failed:`, fetchErr);
-          // If the error is a quota limit (429), billing/permission issue (403), or invalid payload/bad request (400),
-          // continuing to try other models will not resolve the issue and will only mask the true error message.
-          // Therefore, we immediately throw the error if it is not a 404 (Not Found).
-          if (fetchErr.status && fetchErr.status !== 404) {
-            throw fetchErr;
-          }
+          // Try the next config in sequence, only throwing the error if it is the last model in the configs list
           if (i === configsToTry.length - 1) {
             throw fetchErr;
           }
@@ -1483,14 +1485,11 @@ ${JSON.stringify(analysisResult, null, 2)}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-black text-xl tracking-tighter">
-              sL
-            </div>
+            <img src="/favicon.png" className="w-10 h-10 object-contain" alt="로고" />
             <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                scan_LIFE <span className="text-xs font-bold px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100/50">COMPREHENSIVE ADMISSION</span>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">
+                학교생활기록부 종합 분석
               </h1>
-              <span className="text-[10px] block text-slate-400 tracking-widest uppercase font-extrabold">학생생활기록부 종합 사정 플랫폼</span>
             </div>
           </div>
           
