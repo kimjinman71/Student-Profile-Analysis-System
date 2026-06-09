@@ -35,8 +35,7 @@ import {
   Info,
   Image,
   AlertTriangle,
-  RotateCw,
-  Printer
+  RotateCw
 } from 'lucide-react';
 
 const MODEL_NAME = "gemini-2.5-flash";
@@ -955,9 +954,9 @@ const App = () => {
     setError(null);
   };
 
-  const compressImage = (file) => {
+  const compressImage = (file, isLargePayload = false) => {
     return new Promise((resolve) => {
-      const sizeThreshold = 300 * 1024; // Lowered to 300KB to aggressively compress image payload
+      const sizeThreshold = isLargePayload ? 500 * 1024 : 1024 * 1024;
       if (file.size < sizeThreshold) {
         resolve(file);
         return;
@@ -971,8 +970,8 @@ const App = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const MAX_WIDTH = 1200; // Shrink maximum dimension to 1200px to speed up upload and OCR processing
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = isLargePayload ? 1200 : 1800;
+          const MAX_HEIGHT = isLargePayload ? 1200 : 1800;
           if (width > MAX_WIDTH || height > MAX_HEIGHT) {
             if (width > height) {
               height = Math.round((height * MAX_WIDTH) / width);
@@ -989,6 +988,7 @@ const App = () => {
             resolve(file);
             return;
           }
+          // Enable hardware-accelerated high-quality image smoothing to preserve sharp text/OCR readability
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
@@ -1003,7 +1003,7 @@ const App = () => {
             });
             console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(compressedFile);
-          }, 'image/jpeg', 0.73); // Aggressive quality (73%) for maximum speed and minimized error rates
+          }, 'image/jpeg', isLargePayload ? 0.75 : 0.85); // 85% quality provides optimal sharpness, 75% for large payloads
         };
         img.onerror = () => resolve(file);
       };
@@ -1035,23 +1035,89 @@ const App = () => {
 
     setLoading(true);
     setError(null);
-    setProgress(0); // Reset progress to zero immediately to avoid leftover states
     if (!isReParse) {
       setAnalysisResult(null);
     }
 
     const selectedMajorText = majorMeta[targetMajor].label;
 
+    const systemPrompt = `대한민국 대학 입시 전문가 및 입시 데이터를 다루는 교육 데이터 전문가입니다. 학생부(PDF 및 이미지) 파일을 정밀 분석하여 학업역량, 진로역량, 공동체역량 및 세특 연계 분석이 통합된 종합 리포트를 생성하십시오.
+설명의 어조는 부드러우면서도 대학 입학사정관실 고유의 권위 있고 학술적인 전문 톤을 유지하십시오.
+특히, 본 학생의 희망 지원 계열은 [${selectedMajorText}] 이며, 학생의 입력된 고교 유형은 [${schoolType}] 이고, 전교과 내신 등급은 [${estimatedGpa} 등급] 입니다. 이 고교 유형에 따른 보정치 및 전공 가중치 기준과 입력된 정량 내신 등급에 입각해 전공 학업 정합성과 세특 탐구의 깊이 및 이수율의 유불리를 정밀 심사하십시오.
+
+[초고속 분석을 위한 출력 최적화 지침]
+- 전체 분석 생성 시간을 단축하기 위해 불필요한 서사는 배제하십시오.
+- 각 강점 및 보완 포인트는 데이터를 기반으로 1~2문장 이내의 핵심 위주로 아주 간결하게 작성하십시오.
+
+[병렬 처리 및 필터링 핵심 지침 (Parallel Parsing & Fluff Filtering)]
+1. 입력된 학생부 텍스트를 [인적학적사항], [창의적체험활동상황], [교과학습발달상황] 3가지 섹션으로 즉시 분할하고, 나머지 모든 부분(예: [출결사항], [수상경력], [봉사활동실적], [행특] 등)은 완전히 삭제하여 폐기하십시오.
+2. 각 3가지 섹션을 상호 간섭 없이 동시에(Parallel) 파싱하여 핵심 개체(Entity)를 추출하며, 이 병렬 처리를 통해 파싱의 속도와 분석의 정확도를 극대화하십시오.
+3. [인적학적사항] 섹션에서는 학생의 실명(이름) 정보만 추출하여 student_profile.student_name 필드에 기록하고, 해당 섹션의 나머지 부분은 전부 다 삭제하십시오.
+4. 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음' 등)는 무의미한 단순 노이즈(Noise)로 간주하여 철저히 필터링하고 제외하십시오.
+5. 이 노이즈 단어/문구들이 많이 감지될수록, 종합평가 등급(competencies의 academic, career, community 등급) 및 점수를 크게 감점하고 부정적인 영향을 미치도록 설계하십시오.
+6. 오직 **[동기 -> 구체적 역량 활동 -> 결과 및 변화]** 구조를 지닌 실질적이고 인과적인 의미 있는 문맥만을 유효 평가 데이터로 전적으로 인정하며, 이 유효 데이터 비중이 높을수록 종합평가 등급 및 점수에 긍정적인 영향을 미치고 높은 등급을 부여하십시오.
+
+[핵심 사정 원칙]
+1. 학생의 희망 지원 계열이 자연계열(의학, 약학, 치의학, 한의학, 수의학, 첨단바이오, 반도체, IT 등)일 경우 수학 및 과학 교과이수 여부와 '원점수'를 정밀 확인하십시오. 98점 이상의 우수 수학/과학 성취도는 극찬 사유로 반영합니다.
+2. 희망 분야 탐구 구체성: 지적호기심 → 자기주도적 활동 → 상세 실험/탐구 설계 → 구체적 성과 및 성찰의 5단계 흐름이 명확한 경우에 높은 수준의 역량으로 평가하십시오.
+3. 역량별 가치 점수화 및 평가 등급 기준:
+   - **A+ 등급**: 입력된 전교과 내신 등급이 1.00 ~ 1.20 범위에 속하며, 고교 유형이 '전국단위 자사고', '영재/과학고', '외고/국제고' 중 하나일 때에만 부여하십시오. 이 외의 모든 조건(일반고, 기타 특목고, 혹은 내신 범위를 벗어나는 경우 등)에서는 절대 A+ 등급을 부여할 수 없습니다.
+   - **A ~ B+ 등급**: 내신 등급이 1.30 ~ 1.99 사이인 경우, 학생부 내용이 구체적이고 우수한 평가를 받고 있다면 A(또는 A-)에서 B+ 범위에서 평가 등급을 부여하십시오.
+   - **B 등급 (또는 B+)**: 내신 등급이 2.00 ~ 3.00 사이인 경우 대부분 B(또는 B-) 등급으로 평가하되, 학생부 기록을 면밀히 분석하여 구체적인 탐구/실험 내용 및 활동 내용이 풍부하게 기록된 경우 B+ 등급으로 상향 평가하십시오.
+   - **1.00 ~ 1.29 내신 등급**: 내신 등급이 이 범위에 속하는 경우, 학업 역량(academic competency) 평가 및 관련 항목에서 학업 능력이 대단히 '우수함'을 분명하고 적극적으로 평가 및 서술하십시오.
+   - 평가 등급은 오직 다음의 8단계 기본단계 등급(A+, A, A-, B+, B, B-, C+, C) 중 하나를 엄격히 부여하고 이에 상응하는 정량 점수(60~100점 사이)를 부여하십시오.
+4. 종합 사정관 의견(admissions_verdict): 학생부 전체 성과, 전공 진실성, 향후 대학 입시에서의 경쟁력과 주의점에 대해 엄격하게 3~4문장 분량의 핵심 심층 총평을 작성하십시오.
+5. 과목순서: 국어교과군, 수학교과군, 영어교과군, 과학교과군, 사회교과군 순서로 엄격하게 배열하십시오. 기타교과 및 기타 교과군 분석 항목은 완전히 삭제하고 절대 분석 대상에 포함시키지 마십시오.
+6. 문장 내 따옴표는 작은 따옴표(')만 사용하십시오.
+7. 수학 원점수 언급 조건: 내신 등급이 1.50 등급 이내에 속하고, 희망 전공 계열이 의학계열, 치의학계열, 한의학계열, 약학계열, 수의학 계열, 공학계열, 반도체 계열, 계약학과, 경영경제계열 중 하나인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적이고 정확한 언급을 총평 및 분석 결과에 반드시 포함시키십시오.
+8. 파일 포맷 및 다중 형식 처리:
+   - 업로드된 파일이 일반 텍스트 PDF, 스캔 이미지 PDF, 또는 모바일 카메라 촬영본 이미지 등 어떤 형태의 형식과 상태(낮은 화질, 비뚤어짐, 빛 반사, 흐림, OCR 인식 노이즈 등)를 가지더라도 뛰어난 비전-언어 멀티모달 능력을 활용해 글씨를 오차 없이 정교하게 판독해 내십시오.
+   - 단 한 자의 세특 내용도 유실되지 않도록 페이지 순서대로 꼼꼼히 탐독하고, 흐릿하거나 겹쳐서 인식된 단어는 앞뒤 문맥을 바탕으로 지능적으로 복원하십시오.
+   - 분석 대상은 오직 [인적학적사항], [창의적체험활동상황], [교과학습발달상황] 3가지 섹션이며, 지정되지 않은 나머지 항목들(출결, 수상, 봉사, 행특 등)은 분석 대상에서 완전히 차단하고 신속하게 정밀 매핑하십시오.
+9. 루브릭 판정결과 도출 (rubrics): 학생부 기록에 근거하여 다음 4개 표의 총 68개 평정 문항 각각에 대해 개별 판정결과를 도출하십시오. 각 항목의 판정결과 문자열은 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하여 부여해야 합니다.
+  - academic: 학업역량 루브릭 문항 순서대로 22개의 판정결과 문자열 배열을 생성하십시오.
+  - career: 진로역량 루브릭 문항 순서대로 18개의 판정결과 문자열 배열을 생성하십시오.
+  - community: 공동체역량 루브릭 문항 순서대로 20개의 판정결과 문자열 배열을 생성하십시오.
+  - subject: 세특 연계 정성 분석 루브릭 문항 순서대로 8개의 판정결과 문자열 배열을 생성하십시오.
+10. 결과는 지정된 유효한 JSON 형식으로만 응답하십시오.
+11. 학생의 이름 추출: 업로드한 여러 장의 생활기록부 문서 중에서 학생의 실명(예: '김진만', '홍길동' 등)을 감지 및 추출하여 student_profile.student_name 필드에 기록하십시오. 만약 이름이 완전히 가려져(마스킹) 있거나 찾을 수 없을 때만 '분석대상'으로 기재해 주십시오.
+12. 파일 데이터 연계 및 매핑 정확성 및 교과군 세분화:
+  - subject_specific 배열에는 반드시 다음 5가지 교과군 분석 데이터가 명시된 순서대로 정확히 5개 원소로 구성되어야 합니다. 임의로 누락하거나 순서를 바꾸거나 크기를 줄여서는 안 되며, 기타 교과군은 제외해야 합니다.
+    1) {"subject_group": "국어 교과군 분석", "category": "korean", "strengths": [...], "weaknesses": [...]}
+    2) {"subject_group": "수학 교과군 분석", "category": "math", "strengths": [...], "weaknesses": [...]}
+    3) {"subject_group": "영어 교과군 분석", "category": "english", "strengths": [...], "weaknesses": [...]}
+    4) {"subject_group": "과학 교과군 분석", "category": "science", "strengths": [...], "weaknesses": [...]}
+    5) {"subject_group": "사회 교과군 분석", "category": "social", "strengths": [...], "weaknesses": [...]}
+  - 각 교과군별로 강점(strengths) 3개와 보완점(weaknesses) 4개를 학생부 데이터를 정확하게 마이닝하여 구체적인 사례(수업 태도, 탐구 성과, 질문 습관 등)를 토대로 정교하게 분석 및 추출하십시오. 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 평가 서술을 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다.
+  - 학업/진로/공동체 각 역량별 강점(strengths) 3개와 보완점(weaknesses) 4개 역시 학생부의 서술과 내신 정량 등급을 유기적으로 반영하여 구체적이고 현실적으로 추출하십시오.
+  - 루브릭 현황(rubrics)의 총 68개 각 평정 문항은 학생의 실제 활동 깊이와 수준을 상세하게 심사하여 타당성 있는 등급('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')을 정확히 매핑하십시오.`;
+
+    let userPrompt = `업로드된 파일들을 분석하여 학업/진로/공동체 역량별 평가 정보(점수, 등급, 강점 3개, 보완점 4개)와 전 교과 상세 세특 판독 결과, 그리고 최종 사정관 진단이 수록된 전문 리포트를 생성하십시오.`;
+    if (isReParse && analysisResult) {
+      userPrompt = `[중요: 누락 데이터 집중 복원 요청]
+이전에 생성된 불완전한 정성 분석 결과(JSON)는 다음과 같습니다:
+${JSON.stringify(analysisResult, null, 2)}
+
+위의 이전 결과에서 강점(strengths)이나 보완점(weaknesses)이 비어있거나 누락된 부분을 감지하십시오.
+업로드한 원본 생활기록부 문서를 정밀하게 재독해하여, 오직 비어있거나 누락된 항목들만 정확히 채워 넣으십시오.
+기존에 정상적으로 이미 채워져 있는 텍스트 항목들은 임의로 내용을 변경하거나 지우지 말고 그대로 유지(복사)하여 리턴해야 합니다.
+학업역량, 진로역량, 공동체역량의 강점(3개)/보완점(4개), 그리고 5대 교과군별 강점(3개)/보완점(4개)이 누락 없이 가득 차 있는 완전한 JSON 결과물을 재생성해 주십시오.`;
+    }
+
     try {
-      // -------------------------------------------------------------
-      // Step 0: Compress & convert uploaded files to base64
-      // -------------------------------------------------------------
+      // Convert all files to base64 in parallel
+      const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
+      const isLargePayload = totalSize > 8 * 1024 * 1024; // 8MB threshold
+      if (isLargePayload) {
+        console.log(`Large payload detected (${(totalSize / 1024 / 1024).toFixed(2)}MB). Enabling aggressive image compression.`);
+      }
+
       const fileDataPromises = files.map(async (f) => {
         let fileToProcess = f;
         const isImage = f.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name);
         if (isImage) {
           try {
-            fileToProcess = await compressImage(fileToProcess);
+            fileToProcess = await compressImage(f, isLargePayload);
           } catch (compressErr) {
             console.warn("Failed to compress image, using original:", compressErr);
           }
@@ -1066,365 +1132,8 @@ const App = () => {
       });
       const fileParts = await Promise.all(fileDataPromises);
 
-      // -------------------------------------------------------------
-      // Phase 1: OCR & Section Partition
-      // -------------------------------------------------------------
-      setProgress(15);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
       
-      const ocrSystemPrompt = `당신은 문서 OCR 및 텍스트 분할 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 오직 다음 3가지 핵심 섹션만 텍스트를 추출하고 분류해 주십시오:
-1. [인적학적사항]
-2. [창의적체험활동상황]
-3. [교과학습발달상황]
-
-지침:
-- 이 3가지 섹션 외의 모든 부분(예: [출결사항], [수상경력], [봉사활동실적], [행동특성 및 종합의견], [행특] 등)은 완전히 제외하고 삭제해 주십시오.
-- 문서에 노이즈나 누락이 있더라도 앞뒤 문맥을 통해 최대한 텍스트를 복원하여 완전한 텍스트로 추출해 주십시오.
-- 결과는 반드시 다음 JSON 형식으로만 응답해야 합니다. JSON 마크다운 포맷이나 불필요한 설명 없이 순수 JSON만 응답하십시오.
-
-JSON Schema:
-{
-  "personal_info": "인적학적사항 섹션의 텍스트 전체",
-  "extracurricular_activities": "창의적체험활동상황 섹션의 텍스트 전체",
-  "academic_progress": "교과학습발달상황 섹션의 텍스트 전체"
-}`;
-
-      const ocrResponseSchema = {
-        type: "OBJECT",
-        properties: {
-          personal_info: { type: "STRING" },
-          extracurricular_activities: { type: "STRING" },
-          academic_progress: { type: "STRING" }
-        },
-        required: ["personal_info", "extracurricular_activities", "academic_progress"]
-      };
-
-      const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
-      const ocrPayload = {
-        contents: [{ parts: [{ text: "Please extract the text and split into sections." }, ...fileParts] }],
-        systemInstruction: { parts: [{ text: ocrSystemPrompt }] },
-        generationConfig: { 
-          responseMimeType: "application/json",
-          responseSchema: ocrResponseSchema,
-          maxOutputTokens: 8192, 
-          temperature: 0.1 
-        }
-      };
-
-      const ocrResult = await fetchWithRetry(ocrUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ocrPayload)
-      });
-
-      const ocrRawText = ocrResult.candidates?.[0]?.content?.parts?.[0]?.text;
-      const parsedSections = cleanAndParseJson(ocrRawText);
-      if (!parsedSections) {
-        console.error("Failed to parse Phase 1 OCR JSON response:", ocrRawText);
-        throw new Error("학생생활기록부 문서의 텍스트 추출 및 섹션 분할에 실패했습니다.");
-      }
-
-      // -------------------------------------------------------------
-      // Phase 2: Parallel Parsing using Promise.all
-      // -------------------------------------------------------------
-      setProgress(50);
-
-      // Task A: Personal Info -> student name extraction
-      const personalSystemPrompt = `당신은 학생부 인적사항 분석기입니다.
-입력된 인적학적사항 텍스트에서 학생의 실명(이름) 정보만 추출해 주십시오. (예: '김진만', '홍길동' 등)
-실명을 찾을 수 없거나 마스킹 처리되어 있는 경우 '분석대상'으로 기재해 주십시오. 이름 이외의 모든 정보는 삭제해 주십시오.
-결과는 반드시 다음 JSON 형식으로만 응답해야 합니다.
-
-JSON Schema:
-{
-  "student_name": "학생 실명 또는 '분석대상'"
-}`;
-      const personalResponseSchema = {
-        type: "OBJECT",
-        properties: {
-          student_name: { type: "STRING" }
-        },
-        required: ["student_name"]
-      };
-
-      // Task B: Extracurricular Activities Parsing
-      const extracurricularSystemPrompt = `당신은 학생생활기록부 창의적체험활동상황 분석 전문가입니다.
-입력된 창의적체험활동상황 텍스트를 정밀 분석하여 진로역량과 공동체역량에 대한 정성 분석 결과 및 루브릭 판정을 도출하십시오.
-지원 희망 계열은 [${selectedMajorText}] 입니다.
-
-[필터링 지침]
-- 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음' 등)는 무의미한 단순 노이즈(Noise)로 간주하여 철저히 필터링하고 제외하십시오.
-- 오직 [동기 -> 구체적 역량 활동 -> 결과 및 변화] 구조를 지닌 실질적이고 인과적인 의미 있는 문맥만을 유효 데이터로 전적으로 인정하십시오.
-
-[평가 지침]
-- 각 역량별 강점(strengths) 3개와 보완점(weaknesses) 4개를 구체적인 사례를 토대로 작성하십시오. 각 항목은 1~2문장의 핵심 위주로 아주 간결하게 작성하십시오.
-- 루브릭 판정결과 도출:
-  - career (진로역량 루브릭): 18개 평정 문항 각각에 대해 개별 판정결과('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')를 도출하십시오.
-  - community (공동체역량 루브릭): 20개 평정 문항 각각에 대해 개별 판정결과('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')를 도출하십시오.
-  - 각 루브릭 평정 문항 판정결과는 다소 냉정하고 보수적으로 평가해 주십시오.
-
-결과는 반드시 다음 JSON 형식으로만 응답해야 합니다.
-
-JSON Schema:
-{
-  "career": {
-    "strengths": ["강점1", "강점2", "강점3"],
-    "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"],
-    "rubrics": ["우수 (★★)", "충족 (★)", ...] // 정확히 18개 원소
-  },
-  "community": {
-    "strengths": ["강점1", "강점2", "강점3"],
-    "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"],
-    "rubrics": ["우수 (★★)", "충족 (★)", ...] // 정확히 20개 원소
-  },
-  "noise_count": 5 // 감지된 미사여구(노이즈) 단어 수
-}`;
-
-      const extracurricularResponseSchema = {
-        type: "OBJECT",
-        properties: {
-          career: {
-            type: "OBJECT",
-            properties: {
-              strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 },
-              weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 },
-              rubrics: { type: "ARRAY", items: { type: "STRING" }, minItems: 18, maxItems: 18 }
-            },
-            required: ["strengths", "weaknesses", "rubrics"]
-          },
-          community: {
-            type: "OBJECT",
-            properties: {
-              strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 },
-              weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 },
-              rubrics: { type: "ARRAY", items: { type: "STRING" }, minItems: 20, maxItems: 20 }
-            },
-            required: ["strengths", "weaknesses", "rubrics"]
-          },
-          noise_count: { type: "INTEGER" }
-        },
-        required: ["career", "community", "noise_count"]
-      };
-
-      // Task C: Academic Progress & Subject Specifics Parsing
-      const academicSystemPrompt = `당신은 학생생활기록부 교과학습발달상황 및 세특 분석 전문가입니다.
-입력된 교과학습발달상황 텍스트를 정밀 분석하여 학업역량과 5대 교과군별 정성 분석 결과 및 루브릭 판정을 도출하십시오.
-지원 희망 계열은 [${selectedMajorText}] 이며, 고교 유형은 [${schoolType}], 전교과 내신 등급은 [${estimatedGpa} 등급] 입니다.
-
-[필터링 지침]
-- 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음' 등)는 무의미한 단순 노이즈(Noise)로 간주하여 철저히 필터링하고 제외하십시오.
-- 오직 [동기 -> 구체적 역량 활동 -> 결과 및 변화] 구조를 지닌 실질적이고 인과적인 의미 있는 문맥만을 유효 데이터로 전적으로 인정하십시오.
-
-[평가 지침]
-- 학업역량 강점(strengths) 3개와 보완점(weaknesses) 4개를 구체적인 사례를 토대로 작성하십시오. 각 항목은 1~2문장의 핵심 위주로 아주 간결하게 작성하십시오.
-- 5대 교과군별로 강점(strengths) 3개와 보완점(weaknesses) 4개를 학생부 데이터를 정확하게 마이닝하여 국어, 수학, 영어, 과학, 사회 교과군 순서로 작성하십시오. 교과군 기록이 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 평가 서술을 채워야 합니다.
-  - 과목순서: 국어교과군, 수학교과군, 영어교과군, 과학교과군, 사회교과군 순서로 엄격하게 배열하십시오.
-- 루브릭 판정결과 도출:
-  - academic (학업역량 루브릭): 22개 평정 문항 각각에 대해 개별 판정결과('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')를 도출하십시오.
-  - subject (세특 연계 정성 분석 루브릭): 8개 평정 문항 각각에 대해 개별 판정결과('우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)')를 도출하십시오.
-  - 각 루브릭 평정 문항 판정결과는 다소 냉정하고 보수적으로 평가해 주십시오.
-
-결과는 반드시 다음 JSON 형식으로만 응답해야 합니다.
-
-JSON Schema:
-{
-  "academic": {
-    "strengths": ["강점1", "강점2", "강점3"],
-    "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"],
-    "rubrics": ["우수 (★★)", "충족 (★)", ...] // 정확히 22개 원소
-  },
-  "subject_specific": [
-    {
-      "subject_group": "국어 교과군 분석",
-      "category": "korean",
-      "strengths": ["강점1", "강점2", "강점3"],
-      "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"]
-    },
-    {
-      "subject_group": "수학 교과군 분석",
-      "category": "math",
-      "strengths": ["강점1", "강점2", "강점3"],
-      "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"]
-    },
-    {
-      "subject_group": "영어 교과군 분석",
-      "category": "english",
-      "strengths": ["강점1", "강점2", "강점3"],
-      "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"]
-    },
-    {
-      "subject_group": "과학 교과군 분석",
-      "category": "science",
-      "strengths": ["강점1", "강점2", "강점3"],
-      "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"]
-    },
-    {
-      "subject_group": "사회 교과군 분석",
-      "category": "social",
-      "strengths": ["강점1", "강점2", "강점3"],
-      "weaknesses": ["보완점1", "보완점2", "보완점3", "보완점4"]
-    }
-  ],
-  "subject_rubrics": ["우수 (★★)", "충족 (★)", ...], // 정확히 8개 원소
-  "noise_count": 5 // 감지된 미사여구(노이즈) 단어 수
-}`;
-
-      const academicResponseSchema = {
-        type: "OBJECT",
-        properties: {
-          academic: {
-            type: "OBJECT",
-            properties: {
-              strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 },
-              weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 },
-              rubrics: { type: "ARRAY", items: { type: "STRING" }, minItems: 22, maxItems: 22 }
-            },
-            required: ["strengths", "weaknesses", "rubrics"]
-          },
-          subject_specific: {
-            type: "ARRAY",
-            minItems: 5,
-            maxItems: 5,
-            items: {
-              type: "OBJECT",
-              properties: {
-                subject_group: { type: "STRING" },
-                category: { type: "STRING" },
-                strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 3, maxItems: 3 },
-                weaknesses: { type: "ARRAY", items: { type: "STRING" }, minItems: 4, maxItems: 4 }
-              },
-              required: ["subject_group", "category", "strengths", "weaknesses"]
-            }
-          },
-          subject_rubrics: { type: "ARRAY", items: { type: "STRING" }, minItems: 8, maxItems: 8 },
-          noise_count: { type: "INTEGER" }
-        },
-        required: ["academic", "subject_specific", "subject_rubrics", "noise_count"]
-      };
-
-      // Define standard model endpoint generator
-      const makeTextRequest = async (systemPrompt, userText, responseSchema) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
-        const payload = {
-          contents: [{ parts: [{ text: userText }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: { 
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-            maxOutputTokens: 8192, 
-            temperature: 0.1 
-          }
-        };
-        return fetchWithRetry(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      };
-
-      // Parallel execution via Promise.all
-      const [personalRes, extracurricularRes, academicRes] = await Promise.all([
-        makeTextRequest(personalSystemPrompt, parsedSections.personal_info || "정보 없음", personalResponseSchema),
-        makeTextRequest(extracurricularSystemPrompt, parsedSections.extracurricular_activities || "정보 없음", extracurricularResponseSchema),
-        makeTextRequest(academicSystemPrompt, parsedSections.academic_progress || "정보 없음", academicResponseSchema)
-      ]);
-
-      const personalData = cleanAndParseJson(personalRes.candidates?.[0]?.content?.parts?.[0]?.text);
-      const extracurricularData = cleanAndParseJson(extracurricularRes.candidates?.[0]?.content?.parts?.[0]?.text);
-      const academicData = cleanAndParseJson(academicRes.candidates?.[0]?.content?.parts?.[0]?.text);
-
-      if (!personalData || !extracurricularData || !academicData) {
-        throw new Error("병렬 섹션 파싱 중 데이터 손실이 발생했거나 응답 분석에 실패했습니다.");
-      }
-
-      // -------------------------------------------------------------
-      // Phase 3: Synthesis / Verdict & Integration Call
-      // -------------------------------------------------------------
-      setProgress(80);
-
-      const synthesisSystemPrompt = `당신은 대한민국 대학 입학 사정관 및 대학 입시 평가 전문가입니다.
-입력된 파싱 데이터 조각들을 통합하여 최종 완성된 학생부 종합 평가 결과 JSON 객체를 생성하십시오.
-설명의 어조는 부드러우면서도 대학 입학사정관실 고유의 권위 있고 학술적인 전문 톤을 유지하십시오.
-
-[입력 정보]
-- 학생명: \${personalData.student_name}
-- 고교 유형: \${schoolType}
-- 내신 등급: \${estimatedGpa}
-- 지원 희망 계열: \${selectedMajorText}
-- 학업 및 세특 분석 결과: \${JSON.stringify(academicData)}
-- 창의적체험활동 분석 결과: \${JSON.stringify(extracurricularData)}
-
-[핵심 평가 지침 - 등급 및 점수 산출]
-1. 미사여구(노이즈) 필터링 영향:
-   - 학업역량 노이즈 단어 개수: \${academicData.noise_count}
-   - 창체/활동 노이즈 단어 개수: \${extracurricularData.noise_count}
-   - 이 노이즈 개수의 합이 높을수록(예: 합계가 3개 이상 감점 시작, 6개 이상 시 등급 1~2단계 하향) 종합평가 등급(competencies의 academic, career, community 등급)과 점수(score)를 크게 감점하십시오.
-   - 반대로, [동기 -> 구체적 역량 활동 -> 결과 및 변화] 구조가 뚜렷하여 유효한 기록이 많다면 긍정적 영향으로 높은 등급과 점수를 부여하십시오.
-   - 각 루브릭 평정 판정결과는 다소 냉정하고 보수적으로 재평가/반영해 주십시오.
-
-2. 역량별 가치 점수화 및 평가 등급 기준 (academic, career, community):
-   - **A+ 등급**: 입력된 전교과 내신 등급이 1.00 ~ 1.20 범위에 속하며, 고교 유형이 '전국단위 자사고', '영재/과학고', '외고/국제고' 중 하나일 때에만 부여하십시오. 이 외의 모든 조건에서는 절대 A+ 등급을 부여할 수 없습니다.
-   - **A ~ B+ 등급**: 내신 등급이 1.30 ~ 1.99 사이인 경우, 학생부 내용이 구체적이고 우수한 평가를 받고 있다면 A(또는 A-)에서 B+ 범위에서 평가 등급을 부여하십시오.
-   - **B 등급 (또는 B+)**: 내신 등급이 2.00 ~ 3.00 사이인 경우 대부분 B(또는 B-) 등급으로 평가하되, 학생부 기록을 면밀히 분석하여 구체적인 탐구/실험 내용 및 활동 내용이 풍부하게 기록된 경우 B+ 등급으로 상향 평가하십시오.
-   - **1.00 ~ 1.29 내신 등급**: 내신 등급이 이 범위에 속하는 경우, 학업 역량(academic competency) 평가 및 관련 항목에서 학업 능력이 대단히 '우수함'을 분명하고 적극적으로 평가 및 서술하십시오.
-   - 평가 등급은 오직 다음의 8단계 기본단계 등급(A+, A, A-, B+, B, B-, C+, C) 중 하나를 엄격히 부여하고 이에 상응하는 정량 점수(60~100점 사이)를 부여하십시오.
-
-3. 종합 사정관 의견(admissions_verdict):
-   - 학생부 전체 성과, 전공 진실성, 향후 대학 입시에서의 경쟁력과 주의점에 대해 엄격하게 3~4문장 분량의 핵심 심층 총평을 작성하십시오.
-   - 수학 원점수 언급 조건: 내신 등급이 1.50 등급 이내에 속하고, 희망 전공 계열이 의학계열, 치의학계열, 한의학계열, 약학계열, 수의학 계열, 공학계열, 반도체 계열, 계약학과, 경영경제계열 중 하나인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적이고 정확한 언급을 총평 및 분석 결과에 반드시 포함시키십시오.
-
-결과는 반드시 지정된 최종 JSON 형식으로만 응답해야 합니다.
-
-JSON Schema:
-{
-  "student_profile": {
-    "student_name": "\${personalData.student_name}",
-    "estimated_gpa": "\${estimatedGpa}",
-    "major_track": "\${selectedMajorText}",
-    "school_type": "\${schoolType}"
-  },
-  "admissions_verdict": "종합 소견서 문단",
-  "competencies": {
-    "academic": {
-      "score": 85, // 감점 규칙 적용된 정량 점수
-      "grade": "B+", // 감점 규칙 적용된 등급
-      "strengths": \${JSON.stringify(academicData.academic.strengths)},
-      "weaknesses": \${JSON.stringify(academicData.academic.weaknesses)}
-    },
-    "career": {
-      "score": 80,
-      "grade": "B",
-      "strengths": \${JSON.stringify(extracurricularData.career.strengths)},
-      "weaknesses": \${JSON.stringify(extracurricularData.career.weaknesses)}
-    },
-    "community": {
-      "score": 75,
-      "grade": "B-",
-      "strengths": \${JSON.stringify(extracurricularData.community.strengths)},
-      "weaknesses": \${JSON.stringify(extracurricularData.community.weaknesses)}
-    }
-  },
-  "subject_specific": \${JSON.stringify(academicData.subject_specific)},
-  "rubrics": {
-    "academic": \${JSON.stringify(academicData.academic.rubrics)},
-    "career": \${JSON.stringify(extracurricularData.career.rubrics)},
-    "community": \${JSON.stringify(extracurricularData.community.rubrics)},
-    "subject": \${JSON.stringify(academicData.subject_rubrics)}
-  }
-}`;
-
-      // In case of re-parsing, instruct the model to populate missing details based on the previous incomplete results
-      let synthesisUserPrompt = "입력 데이터를 토대로 최종 종합 리포트 JSON을 작성하십시오.";
-      if (isReParse && analysisResult) {
-        synthesisUserPrompt = `[중요: 누락 데이터 집중 복원 및 기존 데이터 보존 요청]
-이전에 생성된 불완전한 정성 분석 결과(JSON)는 다음과 같습니다:
-\${JSON.stringify(analysisResult, null, 2)}
-
-위의 이전 결과에서 강점(strengths)이나 보완점(weaknesses)이 비어있거나 누락된 부분을 감지하고, 이번에 새로 분석된 데이터(\${JSON.stringify(academicData)} 및 \${JSON.stringify(extracurricularData)})를 활용해 누락된 부분들만 집중적으로 채워 넣으십시오.
-기존에 정상적으로 이미 채워져 있는 텍스트 항목들은 임의로 내용을 변경하거나 지우지 말고 그대로 유지(복사)하여 리턴해야 합니다.
-학업역량, 진로역량, 공동체역량의 강점(3개)/보완점(4개), 그리고 5대 교과군별 강점(3개)/보완점(4개)이 누락 없이 가득 차 있는 완벽한 최종 JSON 결과물을 리턴해 주십시오.`;
-      }
-
       const responseSchema = {
         type: "OBJECT",
         properties: {
@@ -1504,40 +1213,58 @@ JSON Schema:
         required: ["student_profile", "admissions_verdict", "competencies", "subject_specific", "rubrics"]
       };
 
-      const synthesisUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
-      const synthesisPayload = {
-        contents: [{ parts: [{ text: synthesisUserPrompt }] }],
-        systemInstruction: { parts: [{ text: synthesisSystemPrompt }] },
-        generationConfig: { 
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-          maxOutputTokens: 8192, 
-          temperature: 0.1 
+      // Strictly target gemini-2.5-flash for scan and parse operations
+      const configsToTry = [
+        { model: "gemini-2.5-flash", apiVersion: "v1beta" }
+      ];
+
+      let result = null;
+      let usedModel = MODEL_NAME;
+
+      for (let i = 0; i < configsToTry.length; i++) {
+        const config = configsToTry[i];
+        try {
+          const url = `https://generativelanguage.googleapis.com/${config.apiVersion}/models/${config.model}:generateContent?key=${currentApiKey}`;
+          const payload = {
+            contents: [{ parts: [{ text: userPrompt }, ...fileParts] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { 
+              responseMimeType: "application/json",
+              responseSchema: responseSchema,
+              maxOutputTokens: 8192, 
+              temperature: 0.1 
+            }
+          };
+          result = await fetchWithRetry(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          usedModel = config.model;
+          break;
+        } catch (fetchErr) {
+          console.warn(`Model config ${config.model} (${config.apiVersion}) failed:`, fetchErr);
+          // Try the next config in sequence, only throwing the error if it is the last model in the configs list
+          if (i === configsToTry.length - 1) {
+            throw fetchErr;
+          }
         }
-      };
+      }
 
-      const synthesisRes = await fetchWithRetry(synthesisUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(synthesisPayload)
-      });
-
-      const rawText = synthesisRes.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsedData = cleanAndParseJson(rawText);
       if (!parsedData) {
-        console.error("Failed to parse Synthesis JSON response:", rawText);
-        throw new Error("최종 종합 리포트 조립 및 검증에 실패했습니다.");
+        console.error("Failed to parse JSON response:", rawText);
+        throw new Error("API 응답 데이터 형식이 올바르지 않거나 손상되었습니다.");
       }
 
       setProgress(100); 
-      // 학생의 정량 내신 정보를 최종 매핑/동기화
+      // 학생의 정량 내신 정보를 동기화
       parsedData.student_profile.estimated_gpa = estimatedGpa;
       parsedData.student_profile.major_track = selectedMajorText;
       parsedData.student_profile.school_type = schoolType;
       parsedData.student_profile.student_name = parsedData.student_profile.student_name || "분석대상";
-      
       setAnalysisResult(parsedData);
-      
       if (isReParse) {
         setActiveResultTab('report'); // 재파싱 후에는 '심층 정성리포트' 섹션 탭으로 이동
       } else {
@@ -1659,8 +1386,7 @@ JSON Schema:
   const studentOverallGpa5 = estimate5Gpa(simulatedGpa);
 
   return (
-    <>
-      <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600 print:hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans font-normal antialiased selection:bg-blue-600/10 selection:text-blue-600">
       {/* 글로벌 네비게이션 헤더 */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -2030,24 +1756,13 @@ JSON Schema:
                 <span>심층 정성리포트</span>
               </button>
               
-              <div className="ml-auto flex items-center gap-2 self-center my-2">
-                {activeResultTab === 'report' && (
-                  <button
-                    onClick={() => window.print()}
-                    className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors border border-blue-200 hover:border-blue-500 px-4 py-2 flex items-center gap-1.5 rounded-none shadow-sm hover:shadow"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>리포트 출력하기</span>
-                  </button>
-                )}
-                <button
-                  onClick={clearFile}
-                  className="text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 py-2 flex items-center gap-1.5 rounded-none"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>새로운 분석 시작</span>
-                </button>
-              </div>
+              <button
+                onClick={clearFile}
+                className="ml-auto text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 my-2 flex items-center gap-1.5 self-center rounded-none"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>새로운 분석 시작</span>
+              </button>
             </div>
 
             {/* 탭 1. 종합 판독 및 내신/대학 모의 진단 시뮬레이션 */}
@@ -2404,8 +2119,6 @@ JSON Schema:
                     </div>
                   </div>
 
-
-
                   {/* 과목별 세특 판단 기준 루브릭 현황 */}
                   <RubricTable 
                     title="과목별 세특 판단 기준 루브릭 현황" 
@@ -2510,254 +2223,6 @@ JSON Schema:
         </div>
       )}
     </div>
-
-    {/* 리포트 출력 전용 HTML 레이아웃 (A4 3장 분량) */}
-    {analysisResult && (
-      <div className="hidden print:block bg-white text-slate-900 font-sans p-0 m-0 print:text-[13px] print:leading-relaxed">
-        {/* PAGE 1: 학생 인적 정보 카드 + 학업역량 정성 심사 루브릭 및 분석 */}
-        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between">
-          <div>
-            {/* 학생 기본 정보 헤더 카드 */}
-            <div className="print-bg-slate-950 p-6 print:text-white mb-6 border border-slate-900">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="px-2 py-0.5 border border-white/20 text-[9px] font-black uppercase print-bg-blue-600 print-text-white">
-                      {analysisResult.student_profile.student_name || "분석대상"} 학생
-                    </span>
-                    <span className="px-2 py-0.5 border border-white/20 text-[9px] font-black uppercase">
-                      분석 진단 완료
-                    </span>
-                    <span className="text-[9px] font-bold">
-                      대상 학교유형: {analysisResult.student_profile.school_type || "일반계 고등학교"}
-                    </span>
-                  </div>
-                  <h2 className="text-2xl font-black tracking-tight print-text-white">
-                    {analysisResult.student_profile.major_track || "의약학 / 바이오 융합 계열"}
-                  </h2>
-                </div>
-                <div className="flex gap-4">
-                  <div className="text-right">
-                    <span className="block text-[8px] font-bold text-slate-400 uppercase">내신등급</span>
-                    <span className="text-xl font-black">{studentOverallGpa.toFixed(2)} 등급</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-[8px] font-bold text-slate-400 uppercase">종합사정등급</span>
-                    <span className="text-xl font-black print-text-blue-600">{resolveOverallGrade()}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 학업역량 평가 */}
-            <div className="border border-slate-200 p-6 mb-6 print-card">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 print-text-blue-600" />
-                  <h3 className="text-base font-black text-slate-900">학업역량 정성 평가 리포트</h3>
-                </div>
-                <span className="text-sm font-black print-text-blue-600">평가 등급: {analysisResult.competencies?.academic?.grade || "A"} ({analysisResult.competencies?.academic?.score || 90}점)</span>
-              </div>
-
-
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                    <span className="text-[12px] font-black text-blue-900 tracking-tight">학업역량 강점 (Strengths)</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.academic?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-blue-500 shrink-0 font-bold">•</span>
-                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
-                    <AlertCircle className="w-4 h-4 text-rose-600" />
-                    <span className="text-[12px] font-black text-rose-900 tracking-tight">학업역량 핵심 보완 및 대비 포인트</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.academic?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-rose-500 shrink-0 font-bold">•</span>
-                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* PAGE 2: 진로역량 및 공동체역량 정성 심사 루브릭 및 분석 */}
-        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between">
-          <div>
-            {/* 진로역량 평가 */}
-            <div className="border border-slate-200 p-6 mb-6 print-card">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
-                <div className="flex items-center gap-2">
-                  <Target className="w-5 h-5 print-text-purple-600" />
-                  <h3 className="text-base font-black text-slate-900">진로역량 정성 평가 리포트</h3>
-                </div>
-                <span className="text-sm font-black print-text-purple-600">평가 등급: {analysisResult.competencies?.career?.grade || "A"} ({analysisResult.competencies?.career?.score || 90}점)</span>
-              </div>
-
-
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                    <span className="text-[12px] font-black text-blue-900 tracking-tight">진로역량 강점 (Strengths)</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.career?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-blue-500 shrink-0 font-bold">•</span>
-                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
-                    <AlertCircle className="w-4 h-4 text-rose-600" />
-                    <span className="text-[12px] font-black text-rose-900 tracking-tight">진로역량 핵심 보완 및 대비 포인트</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.career?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-rose-500 shrink-0 font-bold">•</span>
-                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* 공동체역량 평가 */}
-            <div className="border border-slate-200 p-6 print-card">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 print-text-teal-600" />
-                  <h3 className="text-base font-black text-slate-900">공동체역량 정성 평가 리포트</h3>
-                </div>
-                <span className="text-sm font-black print-text-teal-600">평가 등급: {analysisResult.competencies?.community?.grade || "A"} ({analysisResult.competencies?.community?.score || 90}점)</span>
-              </div>
-
-
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                    <span className="text-[12px] font-black text-blue-900 tracking-tight">공동체역량 강점 (Strengths)</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.community?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-blue-500 shrink-0 font-bold">•</span>
-                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
-                    <AlertCircle className="w-4 h-4 text-rose-600" />
-                    <span className="text-[12px] font-black text-rose-900 tracking-tight">공동체역량 핵심 보완 및 대비 포인트</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {analysisResult.competencies?.community?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-rose-500 shrink-0 font-bold">•</span>
-                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* PAGE 3: 교과군별 세특 정밀 판독 결과 및 입학사정관실 종합 판독 소견서 */}
-        <div className="print:min-h-screen print:flex print:flex-col print:justify-between">
-          <div>
-            {/* 교과 세특 연계 정성 분석 판독서 */}
-            <div className="border border-slate-200 p-6 mb-6 print-card">
-              <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
-                <Library className="w-5 h-5 text-slate-800" />
-                <h3 className="text-base font-black text-slate-900">교과 세특 연계 정성 분석 판독서</h3>
-              </div>
-
-
-
-              {/* 5대 핵심 교과군 분석 카드 */}
-              <div className="space-y-4">
-                {analysisResult.subject_specific?.map((item, idx) => (
-                  <div key={idx} className="border border-slate-100 p-4 print-bg-slate-50 print-card">
-                    <h4 className="text-[12px] font-black text-slate-900 mb-2.5 border-b border-slate-200/60 pb-1.5 flex justify-between">
-                      <span>{item.subject_group}</span>
-                      <span className="text-[10px] font-bold text-slate-400 capitalize">{item.category}</span>
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="print-bg-blue-50/70 border border-blue-200/50 p-3 rounded-none shadow-sm">
-                        <span className="text-[10px] font-black print-text-blue-600 block mb-1.5 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3 text-blue-600" />
-                          주요 강점 (Strengths)
-                        </span>
-                        <ul className="space-y-1 text-slate-700 text-[10px]">
-                          {item.strengths?.map((str, sIdx) => (
-                            <li key={sIdx} className="leading-relaxed flex items-start gap-1">
-                              <span className="text-blue-500 shrink-0 font-bold">•</span>
-                              <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="print-bg-rose-50/70 border border-rose-200/50 p-3 rounded-none shadow-sm">
-                        <span className="text-[10px] font-black text-rose-600 block mb-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3 text-rose-600" />
-                          보완 및 유의점 (Weaknesses)
-                        </span>
-                        <ul className="space-y-1 text-slate-700 text-[10px]">
-                          {item.weaknesses?.map((weak, wIdx) => (
-                            <li key={wIdx} className="leading-relaxed flex items-start gap-1">
-                              <span className="text-rose-500 shrink-0 font-bold">•</span>
-                              <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 종합 판독 소견서 (Admissions Verdict) */}
-            <div className="border border-slate-200 p-6 print-bg-slate-50 print-card">
-              <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
-                <GraduationCap className="w-5 h-5 print-text-blue-600" />
-                <h3 className="text-base font-black text-slate-900">입학사정관실 종합 판독 소견서</h3>
-              </div>
-              <p className="text-[12.5px] font-semibold text-slate-800 leading-relaxed text-justify">
-                {analysisResult.admissions_verdict}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-  </>
   );
 };
 
