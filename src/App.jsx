@@ -2289,7 +2289,7 @@ ${JSON.stringify(analysisResult, null, 2)}
               <div className="mb-6">
                 <h4 className="text-[11px] font-black text-slate-400 tracking-wider mb-2">학업역량 세부 평정 지표 루브릭 현황</h4>
                 <div className="border border-slate-200 overflow-hidden">
-                  <table className="w-full text-left border-collapse text-[10px]">
+                  <table className="w-full text-left border-collapse print-table-compact">
                     <thead>
                       <tr className="print-bg-slate-100 border-b border-slate-200">
                         <th className="p-2 font-black text-slate-700 w-1/4">평가 범주</th>
@@ -2320,24 +2320,30 @@ ${JSON.stringify(analysisResult, null, 2)}
               </div>
               
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-[12px] font-black text-blue-600 uppercase tracking-wider mb-2">학업역량 강점 (Strengths)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <span className="text-[12px] font-black text-blue-900 tracking-tight">학업역량 강점 (Strengths)</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.academic?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-blue-500 shrink-0 font-bold">✓</span>
-                        <span>{str}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-blue-500 shrink-0 font-bold">•</span>
+                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">학업역량 보완 및 대비 포인트 (Weaknesses)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                    <span className="text-[12px] font-black text-rose-900 tracking-tight">학업역량 핵심 보완 및 대비 포인트</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.academic?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-rose-500 shrink-0 font-bold">!</span>
-                        <span>{weak}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-rose-500 shrink-0 font-bold">•</span>
+                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
@@ -2362,7 +2368,7 @@ ${JSON.stringify(analysisResult, null, 2)}
 
               {/* 진로 루브릭 */}
               <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse text-[9.5px]">
+                <table className="w-full text-left border-collapse print-table-compact">
                   <thead>
                     <tr className="print-bg-slate-100 border-b border-slate-200">
                       <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
@@ -2392,24 +2398,30 @@ ${JSON.stringify(analysisResult, null, 2)}
               </div>
               
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-[12px] font-black text-purple-600 uppercase tracking-wider mb-2">진로역량 강점 (Strengths)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <span className="text-[12px] font-black text-blue-900 tracking-tight">진로역량 강점 (Strengths)</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.career?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-purple-500 shrink-0 font-bold">✓</span>
-                        <span>{str}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-blue-500 shrink-0 font-bold">•</span>
+                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">진로역량 보완 및 대비 포인트 (Weaknesses)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                    <span className="text-[12px] font-black text-rose-900 tracking-tight">진로역량 핵심 보완 및 대비 포인트</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.career?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-rose-500 shrink-0 font-bold">!</span>
-                        <span>{weak}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-rose-500 shrink-0 font-bold">•</span>
+                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
@@ -2429,7 +2441,7 @@ ${JSON.stringify(analysisResult, null, 2)}
 
               {/* 공동체 루브릭 */}
               <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse text-[9px]">
+                <table className="w-full text-left border-collapse print-table-compact">
                   <thead>
                     <tr className="print-bg-slate-100 border-b border-slate-200">
                       <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
@@ -2459,24 +2471,30 @@ ${JSON.stringify(analysisResult, null, 2)}
               </div>
               
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-[12px] font-black text-teal-600 uppercase tracking-wider mb-2">공동체역량 강점 (Strengths)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-blue-50 border border-blue-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-blue-100 pb-2">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <span className="text-[12px] font-black text-blue-900 tracking-tight">공동체역량 강점 (Strengths)</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.community?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-teal-500 shrink-0 font-bold">✓</span>
-                        <span>{str}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-blue-500 shrink-0 font-bold">•</span>
+                        <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">공동체역량 보완 및 대비 포인트 (Weaknesses)</h4>
-                  <ul className="space-y-1 text-slate-700">
+                <div className="print-bg-rose-50 border border-rose-200/60 p-5 rounded-none shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-rose-100 pb-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                    <span className="text-[12px] font-black text-rose-900 tracking-tight">공동체역량 핵심 보완 및 대비 포인트</span>
+                  </div>
+                  <ul className="space-y-2">
                     {analysisResult.competencies?.community?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-rose-500 shrink-0 font-bold">!</span>
-                        <span>{weak}</span>
+                      <li key={idx} className="text-[10.5px] font-semibold text-slate-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-rose-500 shrink-0 font-bold">•</span>
+                        <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
                       </li>
                     ))}
                   </ul>
@@ -2498,7 +2516,7 @@ ${JSON.stringify(analysisResult, null, 2)}
 
               {/* 세특 루브릭 표 */}
               <div className="border border-slate-200 overflow-hidden mb-6">
-                <table className="w-full text-left border-collapse text-[9.5px]">
+                <table className="w-full text-left border-collapse print-table-compact">
                   <thead>
                     <tr className="print-bg-slate-100 border-b border-slate-200">
                       <th className="p-1.5 font-black text-slate-700 w-1/4">평가 범주</th>
@@ -2531,29 +2549,35 @@ ${JSON.stringify(analysisResult, null, 2)}
               <div className="space-y-4">
                 {analysisResult.subject_specific?.map((item, idx) => (
                   <div key={idx} className="border border-slate-100 p-4 print-bg-slate-50 print-card">
-                    <h4 className="text-[12px] font-black text-slate-900 mb-2 border-b border-slate-200/60 pb-1.5 flex justify-between">
+                    <h4 className="text-[12px] font-black text-slate-900 mb-2.5 border-b border-slate-200/60 pb-1.5 flex justify-between">
                       <span>{item.subject_group}</span>
                       <span className="text-[10px] font-bold text-slate-400 capitalize">{item.category}</span>
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-[9.5px] font-black print-text-blue-600 block mb-1">✓ 주요 강점</span>
-                        <ul className="space-y-0.5 text-slate-700 text-[10.5px]">
+                      <div className="print-bg-blue-50/70 border border-blue-200/50 p-3 rounded-none shadow-sm">
+                        <span className="text-[10px] font-black print-text-blue-600 block mb-1.5 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-blue-600" />
+                          주요 강점 (Strengths)
+                        </span>
+                        <ul className="space-y-1 text-slate-700 text-[10px]">
                           {item.strengths?.map((str, sIdx) => (
-                            <li key={sIdx} className="leading-tight flex items-start gap-1">
+                            <li key={sIdx} className="leading-relaxed flex items-start gap-1">
                               <span className="text-blue-500 shrink-0 font-bold">•</span>
-                              <span>{str}</span>
+                              <span>{typeof str === 'string' ? str.replace('•', '').trim() : ''}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
-                      <div>
-                        <span className="text-[9.5px] font-black text-rose-600 block mb-1">! 보완 및 유의점</span>
-                        <ul className="space-y-0.5 text-slate-700 text-[10.5px]">
+                      <div className="print-bg-rose-50/70 border border-rose-200/50 p-3 rounded-none shadow-sm">
+                        <span className="text-[10px] font-black text-rose-600 block mb-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          보완 및 유의점 (Weaknesses)
+                        </span>
+                        <ul className="space-y-1 text-slate-700 text-[10px]">
                           {item.weaknesses?.map((weak, wIdx) => (
-                            <li key={wIdx} className="leading-tight flex items-start gap-1">
+                            <li key={wIdx} className="leading-relaxed flex items-start gap-1">
                               <span className="text-rose-500 shrink-0 font-bold">•</span>
-                              <span>{weak}</span>
+                              <span>{typeof weak === 'string' ? weak.replace('•', '').trim() : ''}</span>
                             </li>
                           ))}
                         </ul>
