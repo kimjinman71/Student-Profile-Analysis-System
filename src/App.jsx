@@ -1147,43 +1147,22 @@ const App = () => {
               const msg = errBody.error.message;
               if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
                 keyValidationError = msg;
+              } else {
+                keyValidationError = `Listing models failed: ${msg}`;
               }
+            } else {
+              keyValidationError = `HTTP ${listResBeta.status}`;
             }
-          } catch (_) {}
+          } catch (_) {
+            keyValidationError = `HTTP ${listResBeta.status}`;
+          }
         }
       } catch (e) {
         console.warn("Failed to list models via v1beta:", e);
+        keyValidationError = e.message;
       }
 
-      if (discoveredModels.length === 0 && !keyValidationError) {
-        try {
-          const listUrlV1 = `https://generativelanguage.googleapis.com/v1/models?key=${currentApiKey}`;
-          const listResV1 = await fetch(listUrlV1);
-          if (listResV1.ok) {
-            const data = await listResV1.json();
-            if (data.models && data.models.length > 0) {
-              discoveredModels = data.models
-                .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-                .map(m => m.name.replace('models/', ''));
-              usedApiVersion = 'v1';
-            }
-          } else {
-            try {
-              const errBody = await listResV1.json();
-              if (errBody?.error?.message) {
-                const msg = errBody.error.message;
-                if (msg.includes('API key') || msg.includes('API_KEY') || msg.includes('disabled') || msg.includes('enable')) {
-                  keyValidationError = msg;
-                }
-              }
-            } catch (_) {}
-          }
-        } catch (e) {
-          console.warn("Failed to list models via v1:", e);
-        }
-      }
-
-      if (keyValidationError) {
+      if (keyValidationError && discoveredModels.length === 0) {
         throw new Error(`API 키 인증 또는 활성화에 실패했습니다: ${keyValidationError}`);
       }
 
@@ -1207,16 +1186,12 @@ const App = () => {
         }
       }
 
-      // 2. Fallback execution list
+      // 2. Fallback execution list (Strictly v1beta to support systemInstruction and responseSchema)
       const staticConfigs = [
         { model: MODEL_NAME, apiVersion: "v1beta" },
-        { model: MODEL_NAME, apiVersion: "v1" },
         { model: "gemini-2.0-flash", apiVersion: "v1beta" },
-        { model: "gemini-2.0-flash", apiVersion: "v1" },
         { model: "gemini-1.5-flash", apiVersion: "v1beta" },
-        { model: "gemini-1.5-flash", apiVersion: "v1" },
-        { model: "gemini-1.5-flash-latest", apiVersion: "v1beta" },
-        { model: "gemini-1.5-flash-latest", apiVersion: "v1" }
+        { model: "gemini-1.5-flash-latest", apiVersion: "v1beta" }
       ];
 
       const configsToTry = [];
