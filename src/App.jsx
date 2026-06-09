@@ -2318,7 +2318,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 평가 등급: <span className="font-black text-blue-600 text-sm">{analysisResult.competencies?.academic?.grade}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <PrintAnalysisBox type="strength" data={analysisResult.competencies?.academic?.strengths} />
               <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.academic?.weaknesses} />
             </div>
@@ -2335,7 +2335,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 평가 등급: <span className="font-black text-purple-600 text-sm">{analysisResult.competencies?.career?.grade}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <PrintAnalysisBox type="strength" data={analysisResult.competencies?.career?.strengths} />
               <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.career?.weaknesses} />
             </div>
@@ -2352,7 +2352,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                 평가 등급: <span className="font-black text-teal-600 text-sm">{analysisResult.competencies?.community?.grade}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <PrintAnalysisBox type="strength" data={analysisResult.competencies?.community?.strengths} />
               <PrintAnalysisBox type="weakness" data={analysisResult.competencies?.community?.weaknesses} />
             </div>
@@ -2400,7 +2400,7 @@ ${JSON.stringify(analysisResult, null, 2)}
                               └ {item.subject_group}
                             </div>
                           )}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-3">
                             <PrintAnalysisBox type="strength" data={item?.strengths} />
                             <PrintAnalysisBox type="weakness" data={item?.weaknesses} />
                           </div>
@@ -2410,6 +2410,27 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* 6. 종합 판단 소견서 및 종합 평가 등급 */}
+          <div className="border border-slate-200 p-5 bg-white">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-4">
+              <GraduationCap className="w-5 h-5 text-blue-600" />
+              <h3 className="text-base font-black text-slate-900">종합 판단 소견서</h3>
+            </div>
+            <p className="text-[12.5px] font-semibold text-slate-800 leading-relaxed text-justify mb-5">
+              {analysisResult.admissions_verdict}
+            </p>
+
+            <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <span className="text-[13px] font-black text-slate-900">학교생활기록부 종합 평가 등급</span>
+              </div>
+              <div className="bg-blue-600 text-white font-black text-sm px-4 py-1.5 rounded-none print-bg-blue-600">
+                {resolveOverallGrade()} 등급
+              </div>
             </div>
           </div>
         </div>
