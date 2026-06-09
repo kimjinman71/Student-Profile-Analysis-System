@@ -1759,13 +1759,15 @@ ${JSON.stringify(analysisResult, null, 2)}
               </button>
               
               <div className="ml-auto flex items-center gap-2 self-center my-2">
-                <button
-                  onClick={() => window.print()}
-                  className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors border border-blue-200 hover:border-blue-500 px-4 py-2 flex items-center gap-1.5 rounded-none shadow-sm hover:shadow"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>리포트 출력하기 (A4 3장)</span>
-                </button>
+                {activeResultTab === 'report' && (
+                  <button
+                    onClick={() => window.print()}
+                    className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors border border-blue-200 hover:border-blue-500 px-4 py-2 flex items-center gap-1.5 rounded-none shadow-sm hover:shadow"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>리포트 출력하기</span>
+                  </button>
+                )}
                 <button
                   onClick={clearFile}
                   className="text-xs font-black text-slate-500 hover:text-slate-800 transition-colors uppercase border border-slate-200 px-4 py-2 flex items-center gap-1.5 rounded-none"
@@ -2239,7 +2241,7 @@ ${JSON.stringify(analysisResult, null, 2)}
     {analysisResult && (
       <div className="hidden print:block bg-white text-slate-900 font-sans p-0 m-0 print:text-[13px] print:leading-relaxed">
         {/* PAGE 1: 학생 인적 정보 카드 + 학업역량 정성 심사 루브릭 및 분석 */}
-        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
+        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between">
           <div>
             {/* 학생 기본 정보 헤더 카드 */}
             <div className="print-bg-slate-950 p-6 print:text-white mb-6 border border-slate-900">
@@ -2274,7 +2276,7 @@ ${JSON.stringify(analysisResult, null, 2)}
             </div>
 
             {/* 학업역량 평가 */}
-            <div className="border border-slate-200 p-6 mb-6">
+            <div className="border border-slate-200 p-6 mb-6 print-card">
               <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
                 <div className="flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 print-text-blue-600" />
@@ -2282,34 +2284,9 @@ ${JSON.stringify(analysisResult, null, 2)}
                 </div>
                 <span className="text-sm font-black print-text-blue-600">평가 등급: {analysisResult.competencies?.academic?.grade || "A"} ({analysisResult.competencies?.academic?.score || 90}점)</span>
               </div>
-              
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h4 className="text-[12px] font-black text-blue-600 uppercase tracking-wider mb-2">학업역량 강점 (Strengths)</h4>
-                  <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.academic?.strengths?.map((str, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-blue-500 shrink-0 font-bold">✓</span>
-                        <span>{str}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">학업역량 보완 및 대비 포인트 (Weaknesses)</h4>
-                  <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.academic?.weaknesses?.map((weak, idx) => (
-                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-rose-500 shrink-0 font-bold">!</span>
-                        <span>{weak}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
 
               {/* 루브릭 테이블 */}
-              <div className="mt-4">
+              <div className="mb-6">
                 <h4 className="text-[11px] font-black text-slate-400 tracking-wider mb-2">학업역량 세부 평정 지표 루브릭 현황</h4>
                 <div className="border border-slate-200 overflow-hidden">
                   <table className="w-full text-left border-collapse text-[10px]">
@@ -2341,39 +2318,23 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </table>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* PAGE 2: 진로역량 및 공동체역량 정성 심사 루브릭 및 분석 */}
-        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
-          <div>
-            {/* 진로역량 평가 */}
-            <div className="border border-slate-200 p-6 mb-6">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
-                <div className="flex items-center gap-2">
-                  <Target className="w-5 h-5 print-text-purple-600" />
-                  <h3 className="text-base font-black text-slate-900">진로역량 정성 평가 리포트</h3>
-                </div>
-                <span className="text-sm font-black print-text-purple-600">평가 등급: {analysisResult.competencies?.career?.grade || "A"} ({analysisResult.competencies?.career?.score || 90}점)</span>
-              </div>
               
-              <div className="grid grid-cols-2 gap-6 mb-4">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-[12px] font-black text-purple-600 uppercase tracking-wider mb-2">진로역량 강점 (Strengths)</h4>
+                  <h4 className="text-[12px] font-black text-blue-600 uppercase tracking-wider mb-2">학업역량 강점 (Strengths)</h4>
                   <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.career?.strengths?.map((str, idx) => (
+                    {analysisResult.competencies?.academic?.strengths?.map((str, idx) => (
                       <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-purple-500 shrink-0 font-bold">✓</span>
+                        <span className="text-blue-500 shrink-0 font-bold">✓</span>
                         <span>{str}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">진로역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">학업역량 보완 및 대비 포인트 (Weaknesses)</h4>
                   <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.career?.weaknesses?.map((weak, idx) => (
+                    {analysisResult.competencies?.academic?.weaknesses?.map((weak, idx) => (
                       <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
                         <span className="text-rose-500 shrink-0 font-bold">!</span>
                         <span>{weak}</span>
@@ -2382,9 +2343,25 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </ul>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: 진로역량 및 공동체역량 정성 심사 루브릭 및 분석 */}
+        <div className="print-page-break print:min-h-screen print:flex print:flex-col print:justify-between">
+          <div>
+            {/* 진로역량 평가 */}
+            <div className="border border-slate-200 p-6 mb-6 print-card">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 print-text-purple-600" />
+                  <h3 className="text-base font-black text-slate-900">진로역량 정성 평가 리포트</h3>
+                </div>
+                <span className="text-sm font-black print-text-purple-600">평가 등급: {analysisResult.competencies?.career?.grade || "A"} ({analysisResult.competencies?.career?.score || 90}점)</span>
+              </div>
 
               {/* 진로 루브릭 */}
-              <div className="border border-slate-200 overflow-hidden">
+              <div className="border border-slate-200 overflow-hidden mb-6">
                 <table className="w-full text-left border-collapse text-[9.5px]">
                   <thead>
                     <tr className="print-bg-slate-100 border-b border-slate-200">
@@ -2413,34 +2390,23 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* 공동체역량 평가 */}
-            <div className="border border-slate-200 p-6">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 print-text-teal-600" />
-                  <h3 className="text-base font-black text-slate-900">공동체역량 정성 평가 리포트</h3>
-                </div>
-                <span className="text-sm font-black print-text-teal-600">평가 등급: {analysisResult.competencies?.community?.grade || "A"} ({analysisResult.competencies?.community?.score || 90}점)</span>
-              </div>
               
-              <div className="grid grid-cols-2 gap-6 mb-4">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-[12px] font-black text-teal-600 uppercase tracking-wider mb-2">공동체역량 강점 (Strengths)</h4>
+                  <h4 className="text-[12px] font-black text-purple-600 uppercase tracking-wider mb-2">진로역량 강점 (Strengths)</h4>
                   <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.community?.strengths?.map((str, idx) => (
+                    {analysisResult.competencies?.career?.strengths?.map((str, idx) => (
                       <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
-                        <span className="text-teal-500 shrink-0 font-bold">✓</span>
+                        <span className="text-purple-500 shrink-0 font-bold">✓</span>
                         <span>{str}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">공동체역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">진로역량 보완 및 대비 포인트 (Weaknesses)</h4>
                   <ul className="space-y-1 text-slate-700">
-                    {analysisResult.competencies?.community?.weaknesses?.map((weak, idx) => (
+                    {analysisResult.competencies?.career?.weaknesses?.map((weak, idx) => (
                       <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
                         <span className="text-rose-500 shrink-0 font-bold">!</span>
                         <span>{weak}</span>
@@ -2449,9 +2415,20 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </ul>
                 </div>
               </div>
+            </div>
+
+            {/* 공동체역량 평가 */}
+            <div className="border border-slate-200 p-6 print-card">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 print-text-teal-600" />
+                  <h3 className="text-base font-black text-slate-900">공동체역량 정성 평가 리포트</h3>
+                </div>
+                <span className="text-sm font-black print-text-teal-600">평가 등급: {analysisResult.competencies?.community?.grade || "A"} ({analysisResult.competencies?.community?.score || 90}점)</span>
+              </div>
 
               {/* 공동체 루브릭 */}
-              <div className="border border-slate-200 overflow-hidden">
+              <div className="border border-slate-200 overflow-hidden mb-6">
                 <table className="w-full text-left border-collapse text-[9px]">
                   <thead>
                     <tr className="print-bg-slate-100 border-b border-slate-200">
@@ -2480,15 +2457,40 @@ ${JSON.stringify(analysisResult, null, 2)}
                   </tbody>
                 </table>
               </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-[12px] font-black text-teal-600 uppercase tracking-wider mb-2">공동체역량 강점 (Strengths)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.community?.strengths?.map((str, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-teal-500 shrink-0 font-bold">✓</span>
+                        <span>{str}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-[12px] font-black text-rose-600 uppercase tracking-wider mb-2">공동체역량 보완 및 대비 포인트 (Weaknesses)</h4>
+                  <ul className="space-y-1 text-slate-700">
+                    {analysisResult.competencies?.community?.weaknesses?.map((weak, idx) => (
+                      <li key={idx} className="text-[11.5px] leading-relaxed flex items-start gap-1">
+                        <span className="text-rose-500 shrink-0 font-bold">!</span>
+                        <span>{weak}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* PAGE 3: 교과군별 세특 정밀 판독 결과 및 입학사정관실 종합 판독 소견서 */}
-        <div className="print:min-h-screen print:flex print:flex-col print:justify-between" style={{ contentVisibility: 'auto' }}>
+        <div className="print:min-h-screen print:flex print:flex-col print:justify-between">
           <div>
             {/* 교과 세특 연계 정성 분석 판독서 */}
-            <div className="border border-slate-200 p-6 mb-6">
+            <div className="border border-slate-200 p-6 mb-6 print-card">
               <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
                 <Library className="w-5 h-5 text-slate-800" />
                 <h3 className="text-base font-black text-slate-900">교과 세특 연계 정성 분석 판독서</h3>
@@ -2528,7 +2530,7 @@ ${JSON.stringify(analysisResult, null, 2)}
               {/* 5대 핵심 교과군 분석 카드 */}
               <div className="space-y-4">
                 {analysisResult.subject_specific?.map((item, idx) => (
-                  <div key={idx} className="border border-slate-100 p-4 print-bg-slate-50">
+                  <div key={idx} className="border border-slate-100 p-4 print-bg-slate-50 print-card">
                     <h4 className="text-[12px] font-black text-slate-900 mb-2 border-b border-slate-200/60 pb-1.5 flex justify-between">
                       <span>{item.subject_group}</span>
                       <span className="text-[10px] font-bold text-slate-400 capitalize">{item.category}</span>
@@ -2563,7 +2565,7 @@ ${JSON.stringify(analysisResult, null, 2)}
             </div>
 
             {/* 종합 판독 소견서 (Admissions Verdict) */}
-            <div className="border border-slate-200 p-6 print-bg-slate-50">
+            <div className="border border-slate-200 p-6 print-bg-slate-50 print-card">
               <div className="flex items-center gap-2 pb-3 border-b border-slate-200 mb-4">
                 <GraduationCap className="w-5 h-5 print-text-blue-600" />
                 <h3 className="text-base font-black text-slate-900">입학사정관실 종합 판독 소견서</h3>

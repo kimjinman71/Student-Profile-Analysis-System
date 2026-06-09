@@ -65,6 +65,11 @@ html {
     break-after: page !important;
   }
 
+  .print-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   /* Make sure borders and tables are visible in print */
   .border, .border-slate-200, .border-slate-100 {
     border-color: #cbd5e1 !important;
