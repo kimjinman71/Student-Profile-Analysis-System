@@ -389,7 +389,7 @@ const cleanAndParseJson = (text) => {
     return str
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => {
         if (c === '\n') return '\\n';
-        if (c === '\r') return '\\r';
+        if (c === '\n') return '\\n';
         if (c === '\t') return '\\t';
         return ' ';
       })
@@ -415,7 +415,7 @@ const cleanAndParseJson = (text) => {
     console.warn("구조 복원 엔진 가동...");
     try {
       const recovered = fixTruncatedJson(partialJson);
-      return JSON.parse(sanitizeString(recovered.replace(/\r?\n|\r/g, " ")));
+      return JSON.parse(sanitizeString(recovered.replace(/\n?\n|\n/g, " ")));
     } catch (e2) {
       return null;
     }
@@ -657,18 +657,18 @@ const mapRubricResults = (staticRubrics, dynamicResults) => {
 const RubricTable = ({ title, iconColor, rubrics }) => {
   const getResultBadgeStyles = (result) => {
     if (result.includes("우수")) {
-      return "bg-[#1E40AF] border border-[#1D4ED8] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+      return "bg-[#93C5FD] border border-[#60A5FA] text-[#1E3A8A] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("충족") && !result.includes("부분")) {
-      return "bg-[#065F46] border border-[#047857] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+      return "bg-[#6EE7B7] border border-[#34D399] text-[#065F46] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("부분충족")) {
-      return "bg-[#B45309] border border-[#D97706] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+      return "bg-[#FCD34D] border border-[#FBBF24] text-[#78350F] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("보완요구")) {
-      return "bg-[#EF4444] border border-[#DC2626] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+      return "bg-[#FEE2E2] border border-[#FCA5A5] text-[#991B1B] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
-    return "bg-slate-700 border border-slate-800 text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+    return "bg-slate-200 border border-slate-300 text-slate-800 px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
   };
 
 
@@ -897,10 +897,18 @@ const App = () => {
             const step = Math.max(0.8, parseFloat((diff * 0.22).toFixed(1)));
             return parseFloat((prev + step).toFixed(1));
           }
-          if (prev >= 99.5) return prev;
-          // Dynamic crawling speed: faster in earlier stages, tapering off as it nears 99.5%
-          const crawlStep = prev > 95 ? 0.08 : (prev > 80 ? 0.22 : 0.44);
-          return parseFloat((prev + crawlStep).toFixed(1));
+          if (prev >= 99.9) return prev;
+          // Dynamic crawling speed: slows down as it approaches 99.9% to prevent freezing
+          if (prev >= 98.0) {
+            const crawlStep = (99.9 - prev) * 0.02;
+            return parseFloat((prev + Math.max(0.001, crawlStep)).toFixed(3));
+          }
+          if (prev >= 95.0) {
+            const crawlStep = (99.9 - prev) * 0.05;
+            return parseFloat((prev + Math.max(0.01, crawlStep)).toFixed(2));
+          }
+          const crawlStep = prev > 80.0 ? 0.10 : 0.25;
+          return parseFloat((prev + crawlStep).toFixed(2));
         });
       }, 30);
 
@@ -1040,8 +1048,8 @@ const App = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const MAX_WIDTH = 1100; // Limit dimensions to 1100px
-          const MAX_HEIGHT = 1100;
+          const MAX_WIDTH = 1000; // Limit dimensions to 1000px for faster OCR
+          const MAX_HEIGHT = 1000;
           if (width > MAX_WIDTH || height > MAX_HEIGHT) {
             if (width > height) {
               height = Math.round((height * MAX_WIDTH) / width);
@@ -1072,7 +1080,7 @@ const App = () => {
             });
             console.log(`Aggressive image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(compressedFile);
-          }, 'image/jpeg', 0.70); // 70% quality for optimal speed and readability
+          }, 'image/jpeg', 0.65); // 65% quality for optimal speed and readability
         };
         img.onerror = () => resolve(file);
       };
@@ -1232,48 +1240,32 @@ const App = () => {
 
         progressTargetRef.current = 45;
         const ocrInterval = setInterval(() => {
-          if (progressTargetRef.current < 54) {
-            progressTargetRef.current = parseFloat((progressTargetRef.current + 1.5).toFixed(1));
+          if (progressTargetRef.current < 65) {
+            progressTargetRef.current = parseFloat((progressTargetRef.current + 2.0).toFixed(1));
           }
-        }, 500);
+        }, 300);
 
         const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
 
-        // Create 3 parallel tasks to extract student_name, extracurricular_text, and academic_text concurrently
-        const namePrompt = `당신은 문서 OCR 및 학생 이름 추출 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 정보는 완전히 삭제하고 분석하지 마십시오).
-반드시 'student_name' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+        // Single combined OCR task to split the document into 3 sections and filter out fluff
+        const combinedOcrPrompt = `당신은 문서 OCR 및 학생부 섹션 분할 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 아래 지침에 따라 [인적학적사항], [창의적체험활동상황], [교과학습발달상황] 3가지 섹션으로 즉시 분할하고, 나머지 모든 부분(출결사항, 수상경력, 봉사활동실적, 행동특성 및 종합의견 등)은 완전히 삭제하십시오.
 
-        const nameSchema = {
+[분할 및 요약 지침]
+1. [인적학적사항]: 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. 이름 이외의 주소, 가족관계 등 다른 정보는 완전히 삭제하십시오.
+2. [창의적체험활동상황]: 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적인 사실(수행 역할, 실험 설계 내용 등)만 핵심 위주로 요약하여 'extracurricular_text'에 기입하십시오. 미사여구나 감상 서술은 노이즈로 보고 제외하십시오.
+3. [교과학습발달상황]: 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과 등)만 개조식으로 요약하여 'academic_text'에 기입하십시오. 단순히 '우수함', '열심히 참여함', '노력함' 같은 상투적 미사여구는 완전히 삭제하십시오.
+
+반드시 지정된 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+        const combinedOcrSchema = {
           type: "OBJECT",
           properties: {
-            student_name: { type: "STRING" }
-          },
-          required: ["student_name"]
-        };
-
-        const extraPrompt = `당신은 문서 OCR 및 창체 분석 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [창의적체험활동상황] 섹션만 찾아서 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적 사실(수행 역할, 실험 설계 내용)만 요약하여 'extracurricular_text'에 기입하십시오. (미사여구 및 칭찬 서술, 그리고 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
-반드시 'extracurricular_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
-
-        const extraSchema = {
-          type: "OBJECT",
-          properties: {
-            extracurricular_text: { type: "STRING" }
-          },
-          required: ["extracurricular_text"]
-        };
-
-        const academicPrompt = `당신은 문서 OCR 및 교과 세특 분석 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [교과학습발달상황] 섹션만 찾아서 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과)만 개조식으로 요약하여 'academic_text'에 기입하십시오. (단순히 '우수함', '참여함' 등의 칭찬/감상 코멘트 및 미사여구는 완전히 삭제하고, 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
-반드시 'academic_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
-
-        const academicSchema = {
-          type: "OBJECT",
-          properties: {
+            student_name: { type: "STRING" },
+            extracurricular_text: { type: "STRING" },
             academic_text: { type: "STRING" }
           },
-          required: ["academic_text"]
+          required: ["student_name", "extracurricular_text", "academic_text"]
         };
 
         const runOcrTask = async (systemPrompt, responseSchema) => {
@@ -1299,35 +1291,25 @@ const App = () => {
           return parsed;
         };
 
-        const [nameRes, extraRes, academicRes] = await Promise.all([
-          runOcrTask(namePrompt, nameSchema).catch(err => {
-            console.error("Name extraction failed:", err);
-            return { student_name: "분석대상" };
-          }),
-          runOcrTask(extraPrompt, extraSchema).catch(err => {
-            console.error("Extracurricular extraction failed:", err);
-            return { extracurricular_text: "" };
-          }),
-          runOcrTask(academicPrompt, academicSchema).catch(err => {
-            console.error("Academic extraction failed:", err);
-            return { academic_text: "" };
-          })
-        ]);
+        const ocrRes = await runOcrTask(combinedOcrPrompt, combinedOcrSchema).catch(err => {
+          console.error("Combined OCR extraction failed:", err);
+          throw new Error("학생부 파일 읽기 및 섹션 추출 중 오류가 발생했습니다.");
+        });
 
         clearInterval(ocrInterval);
-        progressTargetRef.current = 55;
+        progressTargetRef.current = 68;
 
         const parsedOcrData = {
-          student_name: nameRes.student_name || "분석대상",
-          extracurricular_text: extraRes.extracurricular_text || "",
-          academic_text: academicRes.academic_text || ""
+          student_name: ocrRes.student_name || "분석대상",
+          extracurricular_text: ocrRes.extracurricular_text || "",
+          academic_text: ocrRes.academic_text || ""
         };
 
         currentExtractedTexts = parsedOcrData;
         setExtractedTexts(parsedOcrData);
       }
 
-      progressTargetRef.current = 60;
+      progressTargetRef.current = 70;
 
       // -------------------------------------------------------------
       // Phase 2: Parallel Parsing (Tasks A, B, and C concurrently)
@@ -1413,7 +1395,11 @@ Index 17: 최종 서류 사정관이 보았을 때 본 학생부의 전체 방�
 전교과 내신 등급: [${estimatedGpa} 등급]
 
 [평가 핵심 기준]
-1. [긍정적이고 객관적인 평가]: 루브릭 현황 표의 각 항목은 학생의 성취와 공동체적 노력을 최대로 존중하여 다소 전향적이고 긍정적으로 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
+1. [내신 등급별 평가 성향 및 태도 지침]:
+   - 학생의 입력 내신 등급이 1.00 ~ 1.50 등급 이내인 경우: 다소 부정적이거나 냉정한 평가보다는 적극적이고 우호적인 긍정적 평가 결과를 작성하십시오. 루브릭 평정 결과에서도 '우수 (★★)'와 '충족 (★)'의 비율을 매우 높여 우수함을 풍부하게 드러내십시오.
+   - 학생의 입력 내신 등급이 1.51 ~ 2.50 등급 이내인 경우: 중립적이고 균형 잡힌 보통 수준의 평가 결과를 작성하십시오. 루브릭 평정 결과에서도 '충족 (★)'과 '부분충족 (O)'을 중심으로 평이한 보통의 평가를 부여하십시오.
+   - 학생의 입력 내신 등급이 2.51 ~ 9.00 등급 이내인 경우 (나머지 등급): 다소 보수적이고 엄격하며 부정적인(냉정한) 평가 결과를 작성하십시오. 텍스트의 미흡함이나 한계를 명확히 짚어내고, 루브릭 평정 결과에서도 '부분충족 (O)'과 '보완요구 (X)'의 비중을 높여 판정하십시오.
+   - 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
 2. [노이즈 필터링 (Fluff Filtering)]:
    - 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음')는 무의미한 단순 노이즈(Noise)로 분류하고 절대 가산하지 마십시오.
    - 이 노이즈 문구가 많이 감지될수록, 공동체역량 등급 및 점수를 크게 감점하십시오.
@@ -1460,7 +1446,11 @@ Index 19: 동료 평가나 사정관 면접 질문 시 성숙한 지적 인격�
 전교과 내신 등급: [${estimatedGpa} 등급]
 
 [평가 핵심 기준]
-1. [긍정적이고 객관적인 평가]: 루브릭 현황 표의 각 항목은 학생의 학업 성취와 탐구 활동을 최대로 존중하여 다소 전향적이고 긍정적으로 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
+1. [내신 등급별 평가 성향 및 태도 지침]:
+   - 학생의 입력 내신 등급이 1.00 ~ 1.50 등급 이내인 경우: 다소 부정적이거나 냉정한 평가보다는 적극적이고 우호적인 긍정적 평가 결과를 작성하십시오. 루브릭 평정 결과에서도 '우수 (★★)'와 '충족 (★)'의 비율을 매우 높여 우수함을 풍부하게 드러내십시오.
+   - 학생의 입력 내신 등급이 1.51 ~ 2.50 등급 이내인 경우: 중립적이고 균형 잡힌 보통 수준의 평가 결과를 작성하십시오. 루브릭 평정 결과에서도 '충족 (★)'과 '부분충족 (O)'을 중심으로 평이한 보통의 평가를 부여하십시오.
+   - 학생의 입력 내신 등급이 2.51 ~ 9.00 등급 이내인 경우 (나머지 등급): 다소 보수적이고 엄격하며 부정적인(냉정한) 평가 결과를 작성하십시오. 텍스트의 미흡함이나 한계를 명확히 짚어내고, 루브릭 평정 결과에서도 '부분충족 (O)'과 '보완요구 (X)'의 비중을 높여 판정하십시오.
+   - 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
 2. [5대 교과군 구성 및 정렬 순서]:
    subject_specific 배열은 반드시 아래 명시된 순서대로 정확히 5개 원소로 구성되어야 합니다:
    1) 국어 교과군 분석 (category: "korean")
@@ -1654,10 +1644,10 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
 
       // Let's start an interval to slowly advance progressTargetRef while we wait
       const phase2Interval = setInterval(() => {
-        if (progressTargetRef.current < 95) {
-          progressTargetRef.current = parseFloat((progressTargetRef.current + 2.5).toFixed(1));
+        if (progressTargetRef.current < 97) {
+          progressTargetRef.current = parseFloat((progressTargetRef.current + 1.5).toFixed(1));
         }
-      }, 700);
+      }, 500);
 
       // Concurrent fetch using Promise.all
       const [resA, resB, resC] = await Promise.all([
