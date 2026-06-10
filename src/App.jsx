@@ -560,7 +560,7 @@ const ACADEMIC_RUBRICS = [
   { category: "탐구력", rowspan: 5, question: "단순 지식 암기를 넘어 심화 개념을 구조화한 학술 탐구가 이루어졌는가", result: "우수 (★★)" },
   { question: "탐구 설계의 주제가 실증적이며 학술적으로 정합하고 구체적인가", result: "우수 (★★)" },
   { question: "탐구 중 수리적/과학적 원리에 입각한 정교한 자료 분석 과정이 있는가", result: "부분충족 (O)" },
-  { question: "예기치 못한 오차 발생 시 능동적인 한계 규명 및 문제 해결 과정이 나타나는가", result: "보완요구 (△)" },
+  { question: "예기치 못한 오차 발생 시 능동적인 한계 규명 및 문제 해결 과정이 나타나는가", result: "보완요구 (X)" },
   { question: "탐구 결과를 실생활의 최신 트렌드나 타 교과의 이론적 접점으로 확장하였는가", result: "충족 (★)" },
   { category: "학업 성장성", rowspan: 4, question: "학년이 올라갈수록 탐구의 깊이와 논문의 활용 수준이 연쇄적으로 심화되었는가", result: "우수 (★★)" },
   { question: "수업 방관을 예방하고 주도적인 학업 태도로 이끈 적극적 발전이 있는가", result: "충족 (★)" },
@@ -628,28 +628,43 @@ const SUBJECT_RUBRICS = [
 ];
 
 const mapRubricResults = (staticRubrics, dynamicResults) => {
-  if (!dynamicResults || !Array.isArray(dynamicResults)) return staticRubrics;
-  return staticRubrics.map((row, idx) => ({
+  const normalize = (val) => {
+    if (!val) return "보완요구 (X)";
+    const str = String(val).trim();
+    if (str.includes("우수")) return "우수 (★★)";
+    if (str.includes("부분")) return "부분충족 (O)";
+    if (str.includes("충족")) return "충족 (★)";
+    if (str.includes("보완") || str.includes("요구") || str.includes("X") || str.includes("x") || str.includes("△")) return "보완요구 (X)";
+    return "보완요구 (X)";
+  };
+
+  const normalizedStatic = staticRubrics.map(row => ({
     ...row,
-    result: dynamicResults[idx] || row.result
+    result: normalize(row.result)
+  }));
+
+  if (!dynamicResults || !Array.isArray(dynamicResults)) return normalizedStatic;
+  return normalizedStatic.map((row, idx) => ({
+    ...row,
+    result: normalize(dynamicResults[idx]) || row.result
   }));
 };
 
 const RubricTable = ({ title, iconColor, rubrics }) => {
   const getResultBadgeStyles = (result) => {
     if (result.includes("우수")) {
-      return "bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+      return "bg-[#EBF5FF] border border-[#C3DDFD] text-[#1E429F] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("충족") && !result.includes("부분")) {
-      return "bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+      return "bg-[#EDFDF5] border border-[#DEF7EC] text-[#03543F] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("부분충족")) {
-      return "bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+      return "bg-[#FEF8E6] border border-[#FDF2B2] text-[#723B10] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
     if (result.includes("보완요구")) {
-      return "bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+      return "bg-[#FDF2F2] border border-[#FDE8E8] text-[#9B1C1C] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
     }
-    return "bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+    return "bg-slate-50 border border-slate-200 text-slate-700 px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
   };
 
   return (
@@ -711,6 +726,7 @@ const App = () => {
   
   // 파싱 진행률 백분율 전용 상태 값 (0.0% ~ 100.0%)
   const [progress, setProgress] = useState(0);
+  const progressTargetRef = React.useRef(0);
   
   // 희망 계열 세분화 설정 상태 (기본값: medicine)
   const [targetMajor, setTargetMajor] = useState("medicine");
@@ -753,6 +769,7 @@ const App = () => {
     setLoading(true);
     setError(null);
     setEstimatedGpa('1.15'); // 데모 작동 시 내신 등급 동기화
+    progressTargetRef.current = 100;
     
     const interval = setInterval(() => {
       setProgress((prev) => {
@@ -868,11 +885,18 @@ const App = () => {
       
       progressTimer = setInterval(() => {
         setProgress((prev) => {
+          const target = progressTargetRef.current;
+          if (prev < target) {
+            const diff = target - prev;
+            // Smoothly and dynamically ease towards target
+            const step = Math.max(0.5, parseFloat((diff * 0.15).toFixed(1)));
+            return parseFloat((prev + step).toFixed(1));
+          }
           if (prev >= 99.5) return prev;
-          const increment = prev > 80 ? 0.3 : (prev > 50 ? 0.8 : 1.4);
-          return parseFloat((prev + increment).toFixed(1));
+          // Slowly tick forward if at or above current phase target
+          return parseFloat((prev + 0.1).toFixed(1));
         });
-      }, 150);
+      }, 50);
 
       stepTimer = setInterval(() => {
         setLoadingStep((prev) => {
@@ -881,7 +905,7 @@ const App = () => {
           }
           return prev;
         });
-      }, 3000);
+      }, 1500);
     } else {
       setProgress(0);
       setLoadingStep(0);
@@ -996,7 +1020,7 @@ const App = () => {
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
-      const sizeThreshold = 200 * 1024; // Aggressive compression threshold (200KB)
+      const sizeThreshold = 150 * 1024; // Aggressive compression threshold (150KB)
       if (file.size < sizeThreshold) {
         resolve(file);
         return;
@@ -1010,8 +1034,8 @@ const App = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const MAX_WIDTH = 1200; // Limit dimensions to 1200px
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = 1100; // Limit dimensions to 1100px
+          const MAX_HEIGHT = 1100;
           if (width > MAX_WIDTH || height > MAX_HEIGHT) {
             if (width > height) {
               height = Math.round((height * MAX_WIDTH) / width);
@@ -1042,7 +1066,7 @@ const App = () => {
             });
             console.log(`Aggressive image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(compressedFile);
-          }, 'image/jpeg', 0.73); // 73% quality to ensure fast upload/processing
+          }, 'image/jpeg', 0.70); // 70% quality for optimal speed and readability
         };
         img.onerror = () => resolve(file);
       };
@@ -1138,7 +1162,7 @@ const App = () => {
 
     setLoading(true);
     setError(null);
-    setProgress(5);
+    progressTargetRef.current = 5;
 
     if (!isReParse) {
       setAnalysisResult(null);
@@ -1154,7 +1178,7 @@ const App = () => {
       // Phase 1: OCR & Section Partitioning (Only if not re-parsing or cache is empty)
       // -------------------------------------------------------------
       if (!isReParse || !currentExtractedTexts) {
-        setProgress(10);
+        progressTargetRef.current = 10;
         const fileDataPromises = files.map(async (f) => {
           let fileToProcess = f;
           const isImage = f.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name);
@@ -1175,15 +1199,16 @@ const App = () => {
         });
         const fileParts = await Promise.all(fileDataPromises);
 
-        setProgress(25);
+        progressTargetRef.current = 25;
 
-        const phase1SystemPrompt = `당신은 문서 OCR 및 텍스트 구조화 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 정밀 분석하여 다음 지침에 따라 텍스트를 추출하고 분류하십시오:
+        const phase1SystemPrompt = `당신은 문서 OCR 및 핵심 정보 요약 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 핵심적인 사실 정보와 활동 내용만을 신속히 추출하십시오. 분석 속도를 극대화하기 위해 미사여구나 불필요한 설명을 완전히 배제하고, 핵심 키워드 및 한 줄 요약 형태의 개조식 위주로 작성하여 출력 토큰 수를 극소화하십시오.
 
-1. [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. 이름이 마스킹되어 있거나 찾을 수 없으면 '분석대상'으로 기입하십시오. 그 외의 모든 인적사항 텍스트는 즉시 삭제하십시오.
-2. [출결사항], [수상경력], [봉사활동실적], [행동특성 및 종합의견](행특) 등의 섹션은 완전히 무시하고 삭제하십시오.
-3. [창의적체험활동상황] 섹션의 모든 텍스트를 추출하여 'extracurricular_text'에 기입하십시오.
-4. [교과학습발달상황] 섹션의 모든 텍스트(각 과목별 세특 포함)를 추출하여 'academic_text'에 기입하십시오.
+지침:
+1. [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호 등 모든 정보는 완전히 삭제)
+2. [출결사항], [수상경력], [봉사활동실적], [행동특성 및 종합의견](행특) 등의 섹션은 절대로 분석하지 말고 완전히 삭제하십시오.
+3. [창의적체험활동상황] 섹션에서는 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적 사실(수행 역할, 실험 설계 내용)만 요약하여 'extracurricular_text'에 기입하십시오. (미사여구 및 칭찬 서술은 전부 삭제)
+4. [교과학습발달상황] 섹션에서는 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과)만 개조식으로 요약하여 'academic_text'에 기입하십시오. (단순히 '우수함', '참여함' 등의 칭찬/감상 코멘트는 완전히 삭제)
 
 반드시 위 3가지 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
 
@@ -1224,7 +1249,7 @@ const App = () => {
         setExtractedTexts(parsedOcrData);
       }
 
-      setProgress(40);
+      progressTargetRef.current = 50;
 
       // -------------------------------------------------------------
       // Phase 2: Parallel Parsing (Tasks A, B, and C concurrently)
@@ -1251,7 +1276,7 @@ const App = () => {
    - 1.00 ~ 1.29 내신 등급: 학업역량 평가 텍스트에서 학업 능력이 대단히 '우수함'을 적극적이고 명확히 서술하십시오.
    - 등급 단계는 (A+, A, A-, B+, B, B-, C+, C) 중 하나를 엄격히 부여하고 이에 상응하는 점수(60~100점)를 부여하십시오.
 4. [수학 원점수 언급]: 내신 1.50 이내이고 자연/공학/경영계열인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적 언급을 반드시 포함시키십시오.
-5. [강점 및 보완점]: 학업 및 진로 각각에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 1~2문장의 핵심 위주로 간결하게 작성)
+5. [강점 및 보완점]: 학업 및 진로 각각에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 반드시 1문장 이내로 핵심만 극도로 압축하여 작성)
 6. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.`;
 
       const systemPromptB = `대한민국 대학 입시 전문가 및 입시 데이터를 다루는 교육 데이터 전문가입니다.
@@ -1273,7 +1298,7 @@ const App = () => {
 4. [종합 사정관 의견 (admissions_verdict)]:
    - 학생부 전체 성과, 전공 진실성, 대학 입시에서의 실질적인 경쟁력과 주의점에 대해 엄격하고 냉정하게 3~4문장 분량의 핵심 심층 총평을 작성하십시오.
    - 지원 전공에 따른 수학/과학 원점수가 98점 이상인 경우 극찬 사유로 반영하되, 보완할 성찰 요소도 날카롭게 짚으십시오.
-5. [강점 및 보완점]: 공동체역량에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 1~2문장의 핵심 위주로 간결하게 작성)
+5. [강점 및 보완점]: 공동체역량에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 반드시 1문장 이내로 핵심만 극도로 압축하여 작성)
 6. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.`;
 
       const systemPromptC = `대한민국 대학 입시 전문가 및 입시 데이터를 다루는 교육 데이터 전문가입니다.
@@ -1295,7 +1320,7 @@ const App = () => {
    기타 교과군 분석 항목은 완전히 제외하십시오.
 3. [강점 및 보완점 구성]:
    - 각 5대 교과군별로 강점(strengths) 3개와 보완점(weaknesses) 4개를 구체적인 사례를 토대로 추출하여 작성하십시오.
-   - 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다. (1~2문장 내 핵심만 서술)
+   - 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다. (반드시 1문장 이내로 핵심만 극도로 압축하여 서술)
 4. [노이즈 필터링 (Fluff Filtering)]:
    - 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음')는 무의미한 단순 노이즈(Noise)로 분류하고 제외하십시오.
 5. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.`;
@@ -1479,7 +1504,7 @@ const App = () => {
         })
       ]);
 
-      setProgress(85);
+      progressTargetRef.current = 85;
 
       // -------------------------------------------------------------
       // Phase 3: Synthesis & Post-processing
@@ -1509,6 +1534,7 @@ const App = () => {
       // Apply dynamic fluff filtering and evaluation penalties in JavaScript
       synthesizedData = postProcessAnalysisResult(synthesizedData, currentExtractedTexts);
 
+      progressTargetRef.current = 100;
       setProgress(100);
 
       setAnalysisResult(synthesizedData);
