@@ -636,12 +636,20 @@ const mapRubricResults = (staticRubrics, dynamicResults) => {
 };
 
 const RubricTable = ({ title, iconColor, rubrics }) => {
-  const getResultColor = (result) => {
-    if (result.includes("우수")) return "text-blue-600";
-    if (result.includes("충족") && !result.includes("부분")) return "text-emerald-600";
-    if (result.includes("부분충족")) return "text-amber-600";
-    if (result.includes("보완요구")) return "text-rose-600";
-    return "text-slate-600";
+  const getResultBadgeStyles = (result) => {
+    if (result.includes("우수")) {
+      return "bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+    }
+    if (result.includes("충족") && !result.includes("부분")) {
+      return "bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+    }
+    if (result.includes("부분충족")) {
+      return "bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+    }
+    if (result.includes("보완요구")) {
+      return "bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
+    }
+    return "bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-sm";
   };
 
   return (
@@ -656,7 +664,7 @@ const RubricTable = ({ title, iconColor, rubrics }) => {
             <tr className="bg-slate-50">
               <th className="p-3 bg-slate-50 font-black text-slate-500 border-b border-r border-slate-200/60 text-center w-28">평가 범주</th>
               <th className="p-3 bg-slate-50 font-black text-slate-500 border-b border-r border-slate-200/60">세부 핵심 질문 평정 지표 (Admissions Rubric)</th>
-              <th className="p-3 bg-slate-50 font-black text-slate-500 border-b border-r border-slate-200/60 text-center w-28">판정 결과</th>
+              <th className="p-3 bg-slate-50 font-black text-slate-500 border-b border-r border-slate-200/60 text-center w-36">판정 결과</th>
             </tr>
           </thead>
           <tbody>
@@ -673,8 +681,10 @@ const RubricTable = ({ title, iconColor, rubrics }) => {
                 <td className="p-3 border-b border-r border-slate-200/60 font-semibold text-slate-700 leading-relaxed">
                   {row.question}
                 </td>
-                <td className={`p-3 border-b border-slate-200/60 font-black text-center whitespace-nowrap ${getResultColor(row.result)}`}>
-                  {row.result}
+                <td className="p-3 border-b border-slate-200/60 text-center align-middle whitespace-nowrap">
+                  <span className={getResultBadgeStyles(row.result)}>
+                    {row.result}
+                  </span>
                 </td>
               </tr>
             ))}
