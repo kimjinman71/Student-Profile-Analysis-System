@@ -653,19 +653,20 @@ const mapRubricResults = (staticRubrics, dynamicResults) => {
 const RubricTable = ({ title, iconColor, rubrics }) => {
   const getResultBadgeStyles = (result) => {
     if (result.includes("우수")) {
-      return "bg-[#DCE9FE] border border-[#B3CFFD] text-[#1E40AF] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
+      return "bg-[#1E40AF] border border-[#1D4ED8] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
     if (result.includes("충족") && !result.includes("부분")) {
-      return "bg-[#DEF7EC] border border-[#BCF0DA] text-[#03543F] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
+      return "bg-[#065F46] border border-[#047857] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
     if (result.includes("부분충족")) {
-      return "bg-[#FEF08A] border border-[#FDE047] text-[#713F12] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
+      return "bg-[#B45309] border border-[#D97706] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
     if (result.includes("보완요구")) {
-      return "bg-[#FEE2E2] border border-[#FCA5A5] text-[#991B1B] px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
+      return "bg-[#991B1B] border border-[#B91C1C] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
-    return "bg-slate-200 border border-slate-300 text-slate-800 px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-sm";
+    return "bg-slate-700 border border-slate-800 text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
   };
+
 
   return (
     <div className="space-y-4 mb-8">
@@ -1087,9 +1088,11 @@ const App = () => {
   const postProcessAnalysisResult = (resultData, ocrTexts) => {
     if (!resultData || !ocrTexts) return resultData;
 
-    // Join all extracted text to search for fluff words
-    const fullText = (ocrTexts.extracurricular_text || "") + " " + (ocrTexts.academic_text || "");
+    const extracurricular = ocrTexts.extracurricular_text || "";
+    const academic = ocrTexts.academic_text || "";
+    const fullText = extracurricular + " " + academic;
 
+    // 1. Noise Fluff Words Penalty
     const fluffWords = [
       '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', 
       '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', 
@@ -1107,46 +1110,69 @@ const App = () => {
 
     console.log(`Detected fluff words count: ${fluffCount}`);
 
-    // If fluff words are detected, apply penalty to competencies
-    if (fluffCount > 0) {
-      // Calculate penalty: 1 point per 2 fluff occurrences, max 15 points penalty
-      const penalty = Math.min(15, Math.floor(fluffCount / 2));
-      
-      const applyPenalty = (comp) => {
-        if (!comp) return;
-        const oldScore = comp.score || 85;
-        const newScore = Math.max(60, oldScore - penalty);
-        comp.score = newScore;
-        
-        // Adjust grade based on new score
-        if (newScore >= 98 && comp.grade === 'A+') {
-          // Keep A+ if score is still 98+
-        } else if (newScore >= 95) {
-          comp.grade = 'A';
-        } else if (newScore >= 90) {
-          comp.grade = 'A-';
-        } else if (newScore >= 85) {
-          comp.grade = 'B+';
-        } else if (newScore >= 80) {
-          comp.grade = 'B';
-        } else if (newScore >= 75) {
-          comp.grade = 'B-';
-        } else if (newScore >= 70) {
-          comp.grade = 'C+';
-        } else {
-          comp.grade = 'C';
-        }
-      };
+    // 2. Structured Context Bonus: [동기 -> 구체적 역량 활동 -> 결과 및 변화]
+    const motivatePatterns = ['계기', '호기심', '관심을 느껴', '하기 위해', '의구심', '질문을 던져', '주목하여', '이유로'];
+    const activityPatterns = ['실험', '설계', '조사', '분석', '탐구', '모델링', '구현', '검증', '작성', '발표', '수행', '비교'];
+    const resultPatterns = ['결과', '도출', '변화', '성장', '파악', '증명', '해결', '깨달', '배우', '알게 됨'];
 
-      if (resultData.competencies) {
-        applyPenalty(resultData.competencies.academic);
-        applyPenalty(resultData.competencies.career);
-        applyPenalty(resultData.competencies.community);
+    let validStructureCount = 0;
+    const sentences = fullText.split(/[.?!;\n]/);
+    sentences.forEach(sentence => {
+      if (sentence.trim().length < 10) return;
+      const hasMotivate = motivatePatterns.some(p => sentence.includes(p));
+      const hasActivity = activityPatterns.some(p => sentence.includes(p));
+      const hasResult = resultPatterns.some(p => sentence.includes(p));
+      if (hasMotivate && hasActivity && hasResult) {
+        validStructureCount++;
       }
+    });
+
+    console.log(`Detected valid structured contexts count: ${validStructureCount}`);
+
+    // Calculate dynamic adjustments
+    const penalty = Math.min(15, Math.floor(fluffCount / 2));
+    const bonus = Math.min(10, validStructureCount * 2);
+    const netAdjustment = bonus - penalty;
+
+    console.log(`Score Adjustment: Bonus(+${bonus}) - Penalty(-${penalty}) = Net(${netAdjustment})`);
+
+    const adjustComp = (comp) => {
+      if (!comp) return;
+      const oldScore = comp.score || 85;
+      const newScore = Math.min(100, Math.max(60, oldScore + netAdjustment));
+      comp.score = newScore;
+      
+      // Adjust grade based on new score
+      if (newScore >= 98) {
+        comp.grade = (resultData.student_profile?.estimated_gpa <= 1.2 && 
+                     ['전국단위 자사고', '영재/과학고', '외고/국제고'].includes(resultData.student_profile?.school_type)) 
+                     ? 'A+' : 'A';
+      } else if (newScore >= 95) {
+        comp.grade = 'A';
+      } else if (newScore >= 90) {
+        comp.grade = 'A-';
+      } else if (newScore >= 85) {
+        comp.grade = 'B+';
+      } else if (newScore >= 80) {
+        comp.grade = 'B';
+      } else if (newScore >= 75) {
+        comp.grade = 'B-';
+      } else if (newScore >= 70) {
+        comp.grade = 'C+';
+      } else {
+        comp.grade = 'C';
+      }
+    };
+
+    if (resultData.competencies) {
+      adjustComp(resultData.competencies.academic);
+      adjustComp(resultData.competencies.career);
+      adjustComp(resultData.competencies.community);
     }
 
     return resultData;
   };
+
 
   const analyzeStudentRecord = async (isReParseVal = false) => {
     const isReParse = typeof isReParseVal === 'boolean' ? isReParseVal : false;
@@ -1202,49 +1228,88 @@ const App = () => {
 
         progressTargetRef.current = 55;
 
-        const phase1SystemPrompt = `당신은 문서 OCR 및 핵심 정보 요약 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 핵심적인 사실 정보와 활동 내용만을 신속히 추출하십시오. 분석 속도를 극대화하기 위해 미사여구나 불필요한 설명을 완전히 배제하고, 핵심 키워드 및 한 줄 요약 형태의 개조식 위주로 작성하여 출력 토큰 수를 극소화하십시오.
+        const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
 
-지침:
-1. [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호 등 모든 정보는 완전히 삭제)
-2. [출결사항], [수상경력], [봉사활동실적], [행동특성 및 종합의견](행특) 등의 섹션은 절대로 분석하지 말고 완전히 삭제하십시오.
-3. [창의적체험활동상황] 섹션에서는 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적 사실(수행 역할, 실험 설계 내용)만 요약하여 'extracurricular_text'에 기입하십시오. (미사여구 및 칭찬 서술은 전부 삭제)
-4. [교과학습발달상황] 섹션에서는 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과)만 개조식으로 요약하여 'academic_text'에 기입하십시오. (단순히 '우수함', '참여함' 등의 칭찬/감상 코멘트는 완전히 삭제)
+        // Create 3 parallel tasks to extract student_name, extracurricular_text, and academic_text concurrently
+        const namePrompt = `당신은 문서 OCR 및 학생 이름 추출 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 정보는 완전히 삭제하고 분석하지 마십시오).
+반드시 'student_name' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
 
-반드시 위 3가지 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
-
-        const phase1ResponseSchema = {
+        const nameSchema = {
           type: "OBJECT",
           properties: {
-            student_name: { type: "STRING" },
-            extracurricular_text: { type: "STRING" },
+            student_name: { type: "STRING" }
+          },
+          required: ["student_name"]
+        };
+
+        const extraPrompt = `당신은 문서 OCR 및 창체 분석 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [창의적체험활동상황] 섹션만 찾아서 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적 사실(수행 역할, 실험 설계 내용)만 요약하여 'extracurricular_text'에 기입하십시오. (미사여구 및 칭찬 서술, 그리고 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
+반드시 'extracurricular_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+        const extraSchema = {
+          type: "OBJECT",
+          properties: {
+            extracurricular_text: { type: "STRING" }
+          },
+          required: ["extracurricular_text"]
+        };
+
+        const academicPrompt = `당신은 문서 OCR 및 교과 세특 분석 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [교과학습발달상황] 섹션만 찾아서 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과)만 개조식으로 요약하여 'academic_text'에 기입하십시오. (단순히 '우수함', '참여함' 등의 칭찬/감상 코멘트 및 미사여구는 완전히 삭제하고, 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
+반드시 'academic_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+        const academicSchema = {
+          type: "OBJECT",
+          properties: {
             academic_text: { type: "STRING" }
           },
-          required: ["student_name", "extracurricular_text", "academic_text"]
+          required: ["academic_text"]
         };
 
-        const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
-        const ocrPayload = {
-          contents: [{ parts: [{ text: "학생부 파일을 OCR 분석하여 지정된 JSON 스키마로 분류해 주세요." }, ...fileParts] }],
-          systemInstruction: { parts: [{ text: phase1SystemPrompt }] },
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: phase1ResponseSchema,
-            temperature: 0.1
+        const runOcrTask = async (systemPrompt, responseSchema) => {
+          const payload = {
+            contents: [{ parts: [{ text: "학생부 파일을 OCR 분석하여 지정된 JSON 스키마로 분류해 주세요." }, ...fileParts] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: responseSchema,
+              temperature: 0.1
+            }
+          };
+          const res = await fetchWithRetry(ocrUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const raw = res.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parsed = cleanAndParseJson(raw);
+          if (!parsed) {
+            throw new Error("데이터 추출에 실패했습니다.");
           }
+          return parsed;
         };
 
-        const ocrRes = await fetchWithRetry(ocrUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(ocrPayload)
-        });
+        const [nameRes, extraRes, academicRes] = await Promise.all([
+          runOcrTask(namePrompt, nameSchema).catch(err => {
+            console.error("Name extraction failed:", err);
+            return { student_name: "분석대상" };
+          }),
+          runOcrTask(extraPrompt, extraSchema).catch(err => {
+            console.error("Extracurricular extraction failed:", err);
+            return { extracurricular_text: "" };
+          }),
+          runOcrTask(academicPrompt, academicSchema).catch(err => {
+            console.error("Academic extraction failed:", err);
+            return { academic_text: "" };
+          })
+        ]);
 
-        const ocrRawText = ocrRes.candidates?.[0]?.content?.parts?.[0]?.text;
-        const parsedOcrData = cleanAndParseJson(ocrRawText);
-        if (!parsedOcrData) {
-          throw new Error("학생부 텍스트 추출 및 구조화에 실패했습니다. 파일 상태를 확인해 주세요.");
-        }
+        const parsedOcrData = {
+          student_name: nameRes.student_name || "분석대상",
+          extracurricular_text: extraRes.extracurricular_text || "",
+          academic_text: academicRes.academic_text || ""
+        };
 
         currentExtractedTexts = parsedOcrData;
         setExtractedTexts(parsedOcrData);
@@ -1258,14 +1323,14 @@ const App = () => {
       
       // Prompts construction
       const systemPromptA = `당신은 대한민국 최고 수준의 대학 입시 심사관이자 학생부 분석 전문가입니다.
-제시된 학생부 텍스트를 고도로 정밀 분석하여 [학업역량(academic)] 및 [진로역량(career)]을 엄격하고 냉정하게 평가하고 관련 루브릭 정보를 생성하십시오.
+제시된 학생부 텍스트를 고도로 정밀 분석하여 [학업역량(academic)] 및 [진로역량(career)]을 긍정적이고 객관적으로 평가하고 관련 루브릭 정보를 생성하십시오.
 
 지원 희망 계열: [${selectedMajorText}]
 입력 고교 유형: [${schoolType}]
 전교과 내신 등급: [${estimatedGpa} 등급]
 
 [평가 핵심 기준]
-1. [보수적 평가]: 루브릭 현황 표의 각 항목은 매우 보수적이고 냉정하게 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
+1. [긍정적이고 객관적인 평가]: 루브릭 현황 표의 각 항목은 학생의 성취와 노력을 최대로 존중하여 다소 전향적이고 긍정적으로 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
 2. [노이즈 필터링 (Fluff Filtering)]:
    - 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음')는 무의미한 단순 노이즈(Noise)로 분류하고 절대 가산하지 마십시오.
    - 이 노이즈 문구가 텍스트 전체에서 발견될수록, 학업역량 및 진로역량의 등급과 점수를 크게 감점하십시오.
@@ -1277,11 +1342,11 @@ const App = () => {
    - 1.00 ~ 1.29 내신 등급: 학업역량 평가 텍스트에서 학업 능력이 대단히 '우수함'을 적극적이고 명확히 서술하십시오.
    - 등급 단계는 (A+, A, A-, B+, B, B-, C+, C) 중 하나를 엄격히 부여하고 이에 상응하는 점수(60~100점)를 부여하십시오.
 4. [수학 원점수 언급]: 내신 1.50 이내이고 자연/공학/경영계열인 경우, 학생부 내 수학 교과(수학I, 수학II, 미적분, 기하 등)의 '원점수' 성취도에 대한 구체적 언급을 반드시 포함시키십시오.
-5. [강점 및 보완점]: 학업 및 진로 각각에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 반드시 1문장 이내로 핵심만 극도로 압축하여 작성)
+5. [강점 및 보완점]: 학업 및 진로 각각에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (생성 속도와 분석 정확도를 최대치로 끌어올리기 위해 각 항목은 반드시 30자~50자 내외의 극도로 간결하고 한눈에 들어오는 1문장으로만 작성하십시오)
 6. [루브릭 현황 평가 지침]:
    - rubrics.academic 배열은 정확히 22개의 문자열이어야 하며, 아래 명시된 22가지 평정 질문에 순서대로 대응해야 합니다.
    - rubrics.career 배열은 정확히 18개의 문자열이어야 하며, 아래 명시된 18가지 평정 질문에 순서대로 대응해야 합니다.
-   - 모든 질문에 대해 학생부 내에 명확한 학업적/활동적 증거가 있을 때만 '우수 (★★)' 또는 '충족 (★)'을 주되, 단순 참가나 기록이 없는 경우 매우 냉정하게 '부분충족 (O)' 또는 '보완요구 (X)'로 다양하게 평가하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 모두 '충족 (★)' 또는 모두 '우수 (★★)')을 대입하는 것은 절대 금지되며, 각 질문에 대해 개별적이고 날카로운 정밀 채점을 수행하여 평정 등급이 다양하고 현실감 있게 분산되도록 하십시오.
+   - 학생부 기록의 탐구 수준과 참여도를 다소 긍정적이고 전향적으로 심사하여 '우수 (★★)' 또는 '충족 (★)'을 우선 고려하되, 기록 증거가 현저히 부족한 경우에 한해 '부분충족 (O)' 또는 '보완요구 (X)'로 판정하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 전부 '충족 (★)' 또는 전부 '우수 (★★)')을 대입하는 것은 절대 금지됩니다. 각 세부 질문의 실제 학생부 텍스트 내용과 인과구조를 대조하여, 질문에 따라 개별적이고 날카로운 정밀 채점을 수행하여 평정 결과가 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)'로 다채롭고 현실감 있게 분산되도록 하십시오.
 7. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.
 
 [학업역량 평정 질문 22가지 (인덱스 순서)]:
@@ -1336,7 +1401,7 @@ Index 17: 최종 서류 사정관이 보았을 때 본 학생부의 전체 방�
 전교과 내신 등급: [${estimatedGpa} 등급]
 
 [평가 핵심 기준]
-1. [보수적 평가]: 루브릭 현황 표의 각 항목은 매우 보수적이고 냉정하게 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단해 주십시오.
+1. [긍정적이고 객관적인 평가]: 루브릭 현황 표의 각 항목은 학생의 성취와 공동체적 노력을 최대로 존중하여 다소 전향적이고 긍정적으로 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
 2. [노이즈 필터링 (Fluff Filtering)]:
    - 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음')는 무의미한 단순 노이즈(Noise)로 분류하고 절대 가산하지 마십시오.
    - 이 노이즈 문구가 많이 감지될수록, 공동체역량 등급 및 점수를 크게 감점하십시오.
@@ -1345,12 +1410,12 @@ Index 17: 최종 서류 사정관이 보았을 때 본 학생부의 전체 방�
    - 공동체역량 등급 단계는 (A+, A, A-, B+, B, B-, C+, C) 중 하나를 엄격히 부여하고 이에 상응하는 점수(60~100점)를 부여하십시오.
    - A+ 등급: 내신 1.00 ~ 1.20 범위 내이며, 고교 유형이 '전국단위 자사고', '영재/과학고', '외고/국제고' 중 하나일 때에만 부여하십시오.
 4. [종합 사정관 의견 (admissions_verdict)]:
-   - 학생부 전체 성과, 전공 진실성, 대학 입시에서의 실질적인 경쟁력과 주의점에 대해 엄격하고 냉정하게 3~4문장 분량의 핵심 심층 총평을 작성하십시오.
+   - 학생부 전체 성과, 전공 진실성, 대학 입시에서의 실질적인 경쟁력과 주의점에 대해 따뜻하면서도 개관적인 3~4문장 분량의 핵심 심층 총평을 작성하십시오.
    - 지원 전공에 따른 수학/과학 원점수가 98점 이상인 경우 극찬 사유로 반영하되, 보완할 성찰 요소도 날카롭게 짚으십시오.
-5. [강점 및 보완점]: 공동체역량에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (각 항목은 반드시 1문장 이내로 핵심만 극도로 압축하여 작성)
+5. [강점 및 보완점]: 공동체역량에 대해 강점 3개와 보완점 4개를 명확하게 도출하여 기재해 주십시오. (생성 속도와 분석 정확도를 최대치로 끌어올리기 위해 각 항목은 반드시 30자~50자 내외의 극도로 간결하고 한눈에 들어오는 1문장으로만 작성하십시오)
 6. [루브릭 현황 평가 지침]:
    - rubrics.community 배열은 정확히 20개의 문자열이어야 하며, 아래 명시된 20가지 평정 질문에 순서대로 대응해야 합니다.
-   - 모든 질문에 대해 학생부 내에 명확한 공동체/협업/소통/이성적 근거가 있을 때만 '우수 (★★)' 또는 '충족 (★)'을 주되, 단순 참가나 기록이 없는 경우 매우 냉정하게 '부분충족 (O)' 또는 '보완요구 (X)'로 다양하게 평가하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 모두 '충족 (★)' 또는 모두 '우수 (★★)')을 대입하는 것은 절대 금지되며, 각 질문에 대해 개별적이고 날카로운 정밀 채점을 수행하여 평정 등급이 다양하고 현실감 있게 분산되도록 하십시오.
+   - 학생부 기록의 협업 및 봉사 태도를 다소 긍정적이고 객관적으로 심사하여 '우수 (★★)' 또는 '충족 (★)'을 우선 고려하되, 기록 증거가 현저히 부족한 경우에 한해 '부분충족 (O)' 또는 '보완요구 (X)'로 판정하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 전부 '충족 (★)' 또는 전부 '우수 (★★)')을 대입하는 것은 절대 금지됩니다. 각 세부 질문의 실제 학생부 텍스트 내용과 인과구조를 대조하여, 질문에 따라 개별적이고 날카로운 정밀 채점을 수행하여 평정 결과가 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)'로 다채롭고 현실감 있게 분산되도록 하십시오.
 7. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.
 
 [공동체역량 평정 질문 20가지 (인덱스 순서)]:
@@ -1383,7 +1448,7 @@ Index 19: 동료 평가나 사정관 면접 질문 시 성숙한 지적 인격�
 전교과 내신 등급: [${estimatedGpa} 등급]
 
 [평가 핵심 기준]
-1. [보수적 평가]: 루브릭 현황 표의 각 항목은 매우 보수적이고 냉정하게 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단해 주십시오.
+1. [긍정적이고 객관적인 평가]: 루브릭 현황 표의 각 항목은 학생의 학업 성취와 탐구 활동을 최대로 존중하여 다소 전향적이고 긍정적으로 평가하십시오. 판정 결과는 오직 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)' 중 하나로만 판단하십시오.
 2. [5대 교과군 구성 및 정렬 순서]:
    subject_specific 배열은 반드시 아래 명시된 순서대로 정확히 5개 원소로 구성되어야 합니다:
    1) 국어 교과군 분석 (category: "korean")
@@ -1394,12 +1459,12 @@ Index 19: 동료 평가나 사정관 면접 질문 시 성숙한 지적 인격�
    기타 교과군 분석 항목은 완전히 제외하십시오.
 3. [강점 및 보완점 구성]:
    - 각 5대 교과군별로 강점(strengths) 3개와 보완점(weaknesses) 4개를 구체적인 사례를 토대로 추출하여 작성하십시오.
-   - 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다. (반드시 1문장 이내로 핵심만 극도로 압축하여 서술)
+   - 학생부에 해당 교과군 기록이 거의 없거나 빈약한 경우에도 해당 학생의 교과 이수 현황과 기본 역량을 유추하여 성실하고 개연성 있게 채워야 하며, 임의로 제외하거나 배열 크기를 줄여서는 안 됩니다. (생성 속도와 분석 정확도를 최대치로 끌어올리기 위해 각 항목은 반드시 30자~50자 내외의 극도로 간결하고 한눈에 들어오는 1문장으로만 작성하십시오)
 4. [노이즈 필터링 (Fluff Filtering)]:
    - 학생부 특유의 미사여구(예: '우수함', '열심히 참여함', '활동함', '노력함', '관심을 보임', '흥미를 가짐', '경험함', '체험함', '이해함', '맡은 역할을 수행함', '협조함', '접함', '알게됨', '점차 향상됨', '발전 가능성이 있음')는 무의미한 단순 노이즈(Noise)로 분류하고 제외하십시오.
 5. [루브릭 현황 평가 지침]:
    - rubrics.subject 배열은 정확히 8개의 문자열이어야 하며, 5대 교과군 공통의 아래 명시된 8가지 평정 질문에 순서대로 대응해야 합니다.
-   - 모든 질문에 대해 학생부 내에 명확한 학문적/교과적 근거가 있을 때만 '우수 (★★)' 또는 '충족 (★)'을 주되, 기록이 미미한 경우 매우 냉정하게 '부분충족 (O)' 또는 '보완요구 (X)'로 다양하게 평가하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 모두 '충족 (★)' 또는 모두 '우수 (★★)')을 대입하는 것은 절대 금지되며, 각 질문에 대해 개별적이고 날카로운 정밀 채점을 수행하여 평정 등급이 다양하고 현실감 있게 분산되도록 하십시오.
+   - 학생부 기록의 교과 탐구 태도를 다소 긍정적이고 객관적으로 심사하여 '우수 (★★)' 또는 '충족 (★)'을 우선 고려하되, 기록 증거가 현저히 부족한 경우에 한해 '부분충족 (O)' 또는 '보완요구 (X)'로 판정하십시오. 모든 루브릭 평정 지표에 일률적으로 하나의 값(예: 전부 '충족 (★)' 또는 전부 '우수 (★★)')을 대입하는 것은 절대 금지됩니다. 각 세부 질문의 실제 학생부 텍스트 내용과 인과구조를 대조하여, 질문에 따라 개별적이고 날카로운 정밀 채점을 수행하여 평정 결과가 '우수 (★★)', '충족 (★)', '부분충족 (O)', '보완요구 (X)'로 다채롭고 현실감 있게 분산되도록 하십시오.
 6. [문장 내 따옴표]: 작은 따옴표(')만 사용하십시오.
 
 [5대 교과군 공통 평정 질문 8가지 (인덱스 순서)]:
