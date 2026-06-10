@@ -899,7 +899,7 @@ const App = () => {
           }
           if (prev >= 99.5) return prev;
           // Dynamic crawling speed: faster in earlier stages, tapering off as it nears 99.5%
-          const crawlStep = prev > 95 ? 0.04 : (prev > 80 ? 0.12 : 0.24);
+          const crawlStep = prev > 95 ? 0.08 : (prev > 80 ? 0.22 : 0.44);
           return parseFloat((prev + crawlStep).toFixed(1));
         });
       }, 30);
@@ -1230,7 +1230,12 @@ const App = () => {
         });
         const fileParts = await Promise.all(fileDataPromises);
 
-        progressTargetRef.current = 55;
+        progressTargetRef.current = 45;
+        const ocrInterval = setInterval(() => {
+          if (progressTargetRef.current < 54) {
+            progressTargetRef.current = parseFloat((progressTargetRef.current + 1.5).toFixed(1));
+          }
+        }, 500);
 
         const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
 
@@ -1309,6 +1314,9 @@ const App = () => {
           })
         ]);
 
+        clearInterval(ocrInterval);
+        progressTargetRef.current = 55;
+
         const parsedOcrData = {
           student_name: nameRes.student_name || "분석대상",
           extracurricular_text: extraRes.extracurricular_text || "",
@@ -1319,7 +1327,7 @@ const App = () => {
         setExtractedTexts(parsedOcrData);
       }
 
-      progressTargetRef.current = 96;
+      progressTargetRef.current = 60;
 
       // -------------------------------------------------------------
       // Phase 2: Parallel Parsing (Tasks A, B, and C concurrently)
@@ -1644,6 +1652,13 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
         return parsed;
       };
 
+      // Let's start an interval to slowly advance progressTargetRef while we wait
+      const phase2Interval = setInterval(() => {
+        if (progressTargetRef.current < 95) {
+          progressTargetRef.current = parseFloat((progressTargetRef.current + 2.5).toFixed(1));
+        }
+      }, 700);
+
       // Concurrent fetch using Promise.all
       const [resA, resB, resC] = await Promise.all([
         runTask(systemPromptA, userPromptA, taskASchema).catch(err => {
@@ -1660,6 +1675,7 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
         })
       ]);
 
+      clearInterval(phase2Interval);
       progressTargetRef.current = 98;
 
       // -------------------------------------------------------------
