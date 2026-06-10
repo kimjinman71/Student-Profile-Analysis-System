@@ -888,15 +888,16 @@ const App = () => {
           const target = progressTargetRef.current;
           if (prev < target) {
             const diff = target - prev;
-            // Smoothly and dynamically ease towards target
-            const step = Math.max(0.5, parseFloat((diff * 0.15).toFixed(1)));
+            // Smoothly and dynamically ease towards target with a higher speed coefficient
+            const step = Math.max(0.8, parseFloat((diff * 0.22).toFixed(1)));
             return parseFloat((prev + step).toFixed(1));
           }
           if (prev >= 99.5) return prev;
-          // Slowly tick forward if at or above current phase target
-          return parseFloat((prev + 0.1).toFixed(1));
+          // Dynamic crawling speed: faster in earlier stages, tapering off as it nears 99.5%
+          const crawlStep = prev > 95 ? 0.04 : (prev > 80 ? 0.12 : 0.24);
+          return parseFloat((prev + crawlStep).toFixed(1));
         });
-      }, 50);
+      }, 30);
 
       stepTimer = setInterval(() => {
         setLoadingStep((prev) => {
@@ -905,7 +906,7 @@ const App = () => {
           }
           return prev;
         });
-      }, 1500);
+      }, 1000);
     } else {
       setProgress(0);
       setLoadingStep(0);
@@ -1162,7 +1163,7 @@ const App = () => {
 
     setLoading(true);
     setError(null);
-    progressTargetRef.current = 5;
+    progressTargetRef.current = 30;
 
     if (!isReParse) {
       setAnalysisResult(null);
@@ -1178,7 +1179,7 @@ const App = () => {
       // Phase 1: OCR & Section Partitioning (Only if not re-parsing or cache is empty)
       // -------------------------------------------------------------
       if (!isReParse || !currentExtractedTexts) {
-        progressTargetRef.current = 10;
+        progressTargetRef.current = 40;
         const fileDataPromises = files.map(async (f) => {
           let fileToProcess = f;
           const isImage = f.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name);
@@ -1199,7 +1200,7 @@ const App = () => {
         });
         const fileParts = await Promise.all(fileDataPromises);
 
-        progressTargetRef.current = 25;
+        progressTargetRef.current = 55;
 
         const phase1SystemPrompt = `당신은 문서 OCR 및 핵심 정보 요약 전문가입니다.
 업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 핵심적인 사실 정보와 활동 내용만을 신속히 추출하십시오. 분석 속도를 극대화하기 위해 미사여구나 불필요한 설명을 완전히 배제하고, 핵심 키워드 및 한 줄 요약 형태의 개조식 위주로 작성하여 출력 토큰 수를 극소화하십시오.
@@ -1249,7 +1250,7 @@ const App = () => {
         setExtractedTexts(parsedOcrData);
       }
 
-      progressTargetRef.current = 50;
+      progressTargetRef.current = 96;
 
       // -------------------------------------------------------------
       // Phase 2: Parallel Parsing (Tasks A, B, and C concurrently)
@@ -1504,7 +1505,7 @@ const App = () => {
         })
       ]);
 
-      progressTargetRef.current = 85;
+      progressTargetRef.current = 98;
 
       // -------------------------------------------------------------
       // Phase 3: Synthesis & Post-processing
