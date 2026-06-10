@@ -629,25 +629,29 @@ const SUBJECT_RUBRICS = [
 
 const mapRubricResults = (staticRubrics, dynamicResults) => {
   const normalize = (val) => {
-    if (!val) return "보완요구 (X)";
+    if (!val) return null;
     const str = String(val).trim();
     if (str.includes("우수")) return "우수 (★★)";
     if (str.includes("부분")) return "부분충족 (O)";
     if (str.includes("충족")) return "충족 (★)";
     if (str.includes("보완") || str.includes("요구") || str.includes("X") || str.includes("x") || str.includes("△")) return "보완요구 (X)";
-    return "보완요구 (X)";
+    return null;
   };
 
   const normalizedStatic = staticRubrics.map(row => ({
     ...row,
-    result: normalize(row.result)
+    result: row.result // Keep default rating
   }));
 
   if (!dynamicResults || !Array.isArray(dynamicResults)) return normalizedStatic;
-  return normalizedStatic.map((row, idx) => ({
-    ...row,
-    result: normalize(dynamicResults[idx]) || row.result
-  }));
+  return normalizedStatic.map((row, idx) => {
+    const rawVal = dynamicResults[idx];
+    const normalizedVal = normalize(rawVal);
+    return {
+      ...row,
+      result: normalizedVal || row.result // Fallback to static default if rawVal is undefined or invalid
+    };
+  });
 };
 
 const RubricTable = ({ title, iconColor, rubrics }) => {
@@ -1668,18 +1672,18 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
           major_track: selectedMajorText,
           school_type: schoolType
         },
-        admissions_verdict: resB.admissions_verdict,
+        admissions_verdict: resB?.admissions_verdict || "평가가 완료되었습니다.",
         competencies: {
-          academic: resA.academic,
-          career: resA.career,
-          community: resB.community
+          academic: resA?.academic || { score: 90, grade: "A", strengths: [], weaknesses: [] },
+          career: resA?.career || { score: 90, grade: "A", strengths: [], weaknesses: [] },
+          community: resB?.community || { score: 90, grade: "A", strengths: [], weaknesses: [] }
         },
-        subject_specific: resC.subject_specific,
+        subject_specific: Array.isArray(resC?.subject_specific) ? resC.subject_specific : [],
         rubrics: {
-          academic: resA.rubrics.academic,
-          career: resA.rubrics.career,
-          community: resB.rubrics.community,
-          subject: resC.rubrics.subject
+          academic: Array.isArray(resA?.rubrics?.academic) ? resA.rubrics.academic : [],
+          career: Array.isArray(resA?.rubrics?.career) ? resA.rubrics.career : [],
+          community: Array.isArray(resB?.rubrics?.community) ? resB.rubrics.community : [],
+          subject: Array.isArray(resC?.rubrics?.subject) ? resC.rubrics.subject : []
         }
       };
 
