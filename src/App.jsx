@@ -662,7 +662,7 @@ const RubricTable = ({ title, iconColor, rubrics }) => {
       return "bg-[#B45309] border border-[#D97706] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
     if (result.includes("보완요구")) {
-      return "bg-[#991B1B] border border-[#B91C1C] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
+      return "bg-[#EF4444] border border-[#DC2626] text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
     }
     return "bg-slate-700 border border-slate-800 text-white px-3.5 py-1 text-[11px] font-black inline-block min-w-24 text-center rounded-full shadow-md";
   };
