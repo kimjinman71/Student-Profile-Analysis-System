@@ -1247,7 +1247,7 @@ const App = () => {
 
         const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
 
-        // Single combined OCR task to split the document into 3 sections and filter out fluff
+        // Combined OCR prompt to split the document into 3 sections and filter out fluff
         const combinedOcrPrompt = `당신은 문서 OCR 및 학생부 섹션 분할 전문가입니다.
 업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 아래 지침에 따라 [인적학적사항], [창의적체험활동상황], [교과학습발달상황] 3가지 섹션으로 즉시 분할하고, 나머지 모든 부분(출결사항, 수상경력, 봉사활동실적, 행동특성 및 종합의견 등)은 완전히 삭제하십시오.
 
@@ -1291,19 +1291,139 @@ const App = () => {
           return parsed;
         };
 
-        const ocrRes = await runOcrTask(combinedOcrPrompt, combinedOcrSchema).catch(err => {
-          console.error("Combined OCR extraction failed:", err);
-          throw new Error("학생부 파일 읽기 및 섹션 추출 중 오류가 발생했습니다.");
-        });
+        let parsedOcrData = null;
+
+        // Try Method 1: Single combined OCR request with schema
+        try {
+          console.log("Attempting Method 1: Combined OCR with schema...");
+          const ocrRes = await runOcrTask(combinedOcrPrompt, combinedOcrSchema);
+          parsedOcrData = {
+            student_name: ocrRes.student_name || "분석대상",
+            extracurricular_text: ocrRes.extracurricular_text || "",
+            academic_text: ocrRes.academic_text || ""
+          };
+        } catch (err1) {
+          console.warn("Method 1 failed:", err1);
+          
+          // Try Method 2: Single combined OCR request WITHOUT schema (plain text JSON request)
+          try {
+            console.log("Attempting Method 2: Combined OCR without schema...");
+            const payload = {
+              contents: [{ parts: [{ text: "학생부 파일을 OCR 분석하여 지정된 JSON 형식으로 분류해 주세요." }, ...fileParts] }],
+              systemInstruction: { parts: [{ text: combinedOcrPrompt }] },
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.1
+              }
+            };
+            const res = await fetchWithRetry(ocrUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const raw = res.candidates?.[0]?.content?.parts?.[0]?.text;
+            const ocrRes = cleanAndParseJson(raw);
+            if (!ocrRes) {
+              throw new Error("JSON 파싱 실패");
+            }
+            parsedOcrData = {
+              student_name: ocrRes.student_name || "분석대상",
+              extracurricular_text: ocrRes.extracurricular_text || "",
+              academic_text: ocrRes.academic_text || ""
+            };
+          } catch (err2) {
+            console.warn("Method 2 failed:", err2);
+            
+            // Try Method 3: Original 3 parallel requests with schemas
+            console.log("Attempting Method 3: 3 parallel OCR tasks...");
+            const runOcrTaskLegacy = async (systemPrompt, responseSchema) => {
+              const payload = {
+                contents: [{ parts: [{ text: "학생부 파일을 OCR 분석하여 지정된 JSON 스키마로 분류해 주세요." }, ...fileParts] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                  responseMimeType: "application/json",
+                  responseSchema: responseSchema,
+                  temperature: 0.1
+                }
+              };
+              const res = await fetchWithRetry(ocrUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              const raw = res.candidates?.[0]?.content?.parts?.[0]?.text;
+              const parsed = cleanAndParseJson(raw);
+              if (!parsed) {
+                throw new Error("데이터 추출에 실패했습니다.");
+              }
+              return parsed;
+            };
+
+            const namePrompt = `당신은 문서 OCR 및 학생 이름 추출 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 정보는 완전히 삭제하고 분석하지 마십시오).
+반드시 'student_name' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+            const nameSchema = {
+              type: "OBJECT",
+              properties: {
+                student_name: { type: "STRING" }
+              },
+              required: ["student_name"]
+            };
+
+            const extraPrompt = `당신은 문서 OCR 및 창체 분석 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [창의적체험활동상황] 섹션만 찾아서 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적 사실(수행 역할, 실험 설계 내용)만 요약하여 'extracurricular_text'에 기입하십시오. (미사여구 및 칭찬 서술, 그리고 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
+반드시 'extracurricular_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+            const extraSchema = {
+              type: "OBJECT",
+              properties: {
+                extracurricular_text: { type: "STRING" }
+              },
+              required: ["extracurricular_text"]
+            };
+
+            const academicPrompt = `당신은 문서 OCR 및 교과 세특 분석 전문가입니다.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [교과학습발달상황] 섹션만 찾아서 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과)만 개조식 요약하여 'academic_text'에 기입하십시오. (단순히 '우수함', '참여함' 등의 칭찬/감상 코멘트 및 미사여구는 완전히 삭제하고, 인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 섹션은 완전히 삭제하고 제외하십시오).
+반드시 'academic_text' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
+
+            const academicSchema = {
+              type: "OBJECT",
+              properties: {
+                academic_text: { type: "STRING" }
+              },
+              required: ["academic_text"]
+            };
+
+            const [nameRes, extraRes, academicRes] = await Promise.all([
+              runOcrTaskLegacy(namePrompt, nameSchema).catch(err => {
+                console.error("Legacy Name extraction failed:", err);
+                return { student_name: "분석대상" };
+              }),
+              runOcrTaskLegacy(extraPrompt, extraSchema).catch(err => {
+                console.error("Legacy Extracurricular extraction failed:", err);
+                return { extracurricular_text: "" };
+              }),
+              runOcrTaskLegacy(academicPrompt, academicSchema).catch(err => {
+                console.error("Legacy Academic extraction failed:", err);
+                return { academic_text: "" };
+              })
+            ]);
+
+            parsedOcrData = {
+              student_name: nameRes.student_name || "분석대상",
+              extracurricular_text: extraRes.extracurricular_text || "",
+              academic_text: academicRes.academic_text || ""
+            };
+          }
+        }
+
+        if (!parsedOcrData) {
+          throw new Error("모든 OCR 추출 방법이 실패했습니다.");
+        }
 
         clearInterval(ocrInterval);
         progressTargetRef.current = 68;
-
-        const parsedOcrData = {
-          student_name: ocrRes.student_name || "분석대상",
-          extracurricular_text: ocrRes.extracurricular_text || "",
-          academic_text: ocrRes.academic_text || ""
-        };
 
         currentExtractedTexts = parsedOcrData;
         setExtractedTexts(parsedOcrData);
