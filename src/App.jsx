@@ -2057,7 +2057,7 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
                         className="w-full bg-slate-50 border-2 border-slate-100 focus:border-slate-900 focus:bg-white rounded-none py-4 pl-14 pr-20 text-slate-900 font-extrabold tracking-tight focus:outline-none transition-all"
                       />
                       <div className="absolute inset-y-0 right-0 pr-5 flex items-center pointer-events-none">
-                        <span className="text-xs font-black text-slate-400 tracking-wider">등급 (GPA)</span>
+                        <span className="text-xs font-black text-slate-400 tracking-wider">등급</span>
                       </div>
                     </div>
 
