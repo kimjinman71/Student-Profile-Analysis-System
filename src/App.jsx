@@ -1936,7 +1936,7 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
             <img src="/favicon.png" className="w-10 h-10 object-contain" alt="로고" />
             <div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight">
-                학교생활기록부 종합 분석
+                학교생활기록부 분석 시스템
               </h1>
             </div>
           </div>
@@ -2199,7 +2199,7 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
                       className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white font-black text-[15px] transition-all duration-300 flex items-center justify-center gap-2 rounded-none"
                     >
                       <Sparkles className="w-5 h-5" />
-                      <span>생활기록부 정밀 정성분석 시작</span>
+                      <span>학생부 정밀 정성분석 시작</span>
                     </button>
                   )}
                   <button
