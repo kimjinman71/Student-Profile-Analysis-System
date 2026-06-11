@@ -742,6 +742,9 @@ const App = () => {
   // 전교과 내신 성적 평점 입력 상태
   const [estimatedGpa, setEstimatedGpa] = useState('1.15');
 
+  // 학생 이름 입력 상태
+  const [studentName, setStudentName] = useState('');
+
   // 고교 유형 설정 상태 (일반고, 전국단위 자사고, 광역단위 자사고, 영재/과학고, 외고/국제고)
   const [schoolType, setSchoolType] = useState('일반고');
 
@@ -794,7 +797,7 @@ const App = () => {
       demoResult.student_profile.major_track = majorMeta[targetMajor].label;
       demoResult.student_profile.estimated_gpa = '1.15';
       demoResult.student_profile.school_type = schoolType;
-      demoResult.student_profile.student_name = demoResult.student_profile.student_name || "홍길동";
+      demoResult.student_profile.student_name = studentName || demoResult.student_profile.student_name || "홍길동";
       setAnalysisResult(demoResult);
       setLoading(false);
       setActiveResultTab('admission'); // 기본적으로 새로운 '2페이지(진단 및 예측)'를 띄움
@@ -1248,25 +1251,23 @@ const App = () => {
 
         const ocrUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${currentApiKey}`;
 
-        // Combined OCR prompt to split the document into 3 sections and filter out fluff
+        // Combined OCR prompt to split the document into 2 sections and filter out fluff
         const combinedOcrPrompt = `당신은 문서 OCR 및 학생부 섹션 분할 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 아래 지침에 따라 [인적학적사항], [창의적체험활동상황], [교과학습발달상황] 3가지 섹션으로 즉시 분할하고, 나머지 모든 부분(출결사항, 수상경력, 봉사활동실적, 행동특성 및 종합의견 등)은 완전히 삭제하십시오.
+업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 아래 지침에 따라 [창의적체험활동상황], [교과학습발달상황] 2가지 섹션으로 즉시 분할하고, 나머지 모든 부분(인적학적사항, 출결사항, 수상경력, 봉사활동실적, 행동특성 및 종합의견 등)은 완전히 삭제하십시오.
 
 [분할 및 요약 지침]
-1. [인적학적사항]: 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. 이름 이외의 주소, 가족관계 등 다른 정보는 완전히 삭제하십시오.
-2. [창의적체험활동상황]: 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적인 사실(수행 역할, 실험 설계 내용 등)만 핵심 위주로 요약하여 'extracurricular_text'에 기입하십시오. 미사여구나 감상 서술은 노이즈로 보고 제외하십시오.
-3. [교과학습발달상황]: 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과 등)만 개조식으로 요약하여 'academic_text'에 기입하십시오. 단순히 '우수함', '열심히 참여함', '노력함' 같은 상투적 미사여구는 완전히 삭제하십시오.
+1. [창의적체험활동상황]: 동아리 활동, 진로활동 등의 핵심 탐구 주제 및 구체적인 사실(수행 역할, 실험 설계 내용 등)만 핵심 위주로 요약하여 'extracurricular_text'에 기입하십시오. 미사여구나 감상 서술은 노이즈로 보고 제외하십시오.
+2. [교과학습발달상황]: 각 교과목명, 내신 성적/성취도 및 핵심 세특 내용(수행평가 주제, 사용 이론, 실험 설계 방식 및 결과 등)만 개조식으로 요약하여 'academic_text'에 기입하십시오. 단순히 '우수함', '열심히 참여함', '노력함' 같은 상투적 미사여구는 완전히 삭제하십시오.
 
 반드시 지정된 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
 
         const combinedOcrSchema = {
           type: "OBJECT",
           properties: {
-            student_name: { type: "STRING" },
             extracurricular_text: { type: "STRING" },
             academic_text: { type: "STRING" }
           },
-          required: ["student_name", "extracurricular_text", "academic_text"]
+          required: ["extracurricular_text", "academic_text"]
         };
 
         const runOcrTask = async (systemPrompt, responseSchema) => {
@@ -1299,7 +1300,6 @@ const App = () => {
           console.log("Attempting Method 1: Combined OCR with schema...");
           const ocrRes = await runOcrTask(combinedOcrPrompt, combinedOcrSchema);
           parsedOcrData = {
-            student_name: ocrRes.student_name || "분석대상",
             extracurricular_text: ocrRes.extracurricular_text || "",
             academic_text: ocrRes.academic_text || ""
           };
@@ -1328,15 +1328,14 @@ const App = () => {
               throw new Error("JSON 파싱 실패");
             }
             parsedOcrData = {
-              student_name: ocrRes.student_name || "분석대상",
               extracurricular_text: ocrRes.extracurricular_text || "",
               academic_text: ocrRes.academic_text || ""
             };
           } catch (err2) {
             console.warn("Method 2 failed:", err2);
             
-            // Try Method 3: Original 3 parallel requests with schemas
-            console.log("Attempting Method 3: 3 parallel OCR tasks...");
+            // Try Method 3: Original 2 parallel requests with schemas
+            console.log("Attempting Method 3: 2 parallel OCR tasks...");
             const runOcrTaskLegacy = async (systemPrompt, responseSchema) => {
               const payload = {
                 contents: [{ parts: [{ text: "학생부 파일을 OCR 분석하여 지정된 JSON 스키마로 분류해 주세요." }, ...fileParts] }],
@@ -1358,18 +1357,6 @@ const App = () => {
                 throw new Error("데이터 추출에 실패했습니다.");
               }
               return parsed;
-            };
-
-            const namePrompt = `당신은 문서 OCR 및 학생 이름 추출 전문가입니다.
-업로드된 학생부 파일(이미지 또는 PDF)을 분석하여 [인적학적사항] 섹션에서 학생의 실제 이름(예: '김철수', '홍길동')만 추출하여 'student_name'에 기입하십시오. (이름 외의 주소, 주민번호, 출결사항, 수상경력, 봉사활동실적, 행특 등 다른 모든 정보는 완전히 삭제하고 분석하지 마십시오).
-반드시 'student_name' 필드만을 가지는 JSON 객체로 응답해야 합니다. 불필요한 설명이나 마크다운 태그 없이 JSON으로만 응답해 주십시오.`;
-
-            const nameSchema = {
-              type: "OBJECT",
-              properties: {
-                student_name: { type: "STRING" }
-              },
-              required: ["student_name"]
             };
 
             const extraPrompt = `당신은 문서 OCR 및 창체 분석 전문가입니다.
@@ -1396,11 +1383,7 @@ const App = () => {
               required: ["academic_text"]
             };
 
-            const [nameRes, extraRes, academicRes] = await Promise.all([
-              runOcrTaskLegacy(namePrompt, nameSchema).catch(err => {
-                console.error("Legacy Name extraction failed:", err);
-                return { student_name: "분석대상" };
-              }),
+            const [extraRes, academicRes] = await Promise.all([
               runOcrTaskLegacy(extraPrompt, extraSchema).catch(err => {
                 console.error("Legacy Extracurricular extraction failed:", err);
                 return { extracurricular_text: "" };
@@ -1412,7 +1395,6 @@ const App = () => {
             ]);
 
             parsedOcrData = {
-              student_name: nameRes.student_name || "분석대상",
               extracurricular_text: extraRes.extracurricular_text || "",
               academic_text: academicRes.academic_text || ""
             };
@@ -1600,18 +1582,20 @@ Index 5: 학년이 올라갈수록 탐구 수준과 연구의 성취도가 점�
 Index 6: 대학 진학 이후 고등 범주의 학문을 지속해서 발전시킬 가능성이 충분한가
 Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 하나의 학술 스토리를 형성하는가`;
 
+      const finalStudentName = studentName || "분석대상";
+
       let userPromptA = `학업역량과 진로역량을 정량 내신과 학생부 텍스트를 고려하여 평가해 주십시오.
-학생이름: ${currentExtractedTexts.student_name}
+학생이름: ${finalStudentName}
 창의적체험활동: ${currentExtractedTexts.extracurricular_text}
 교과학습발달상황: ${currentExtractedTexts.academic_text}`;
 
       let userPromptB = `공동체역량과 종합 판단 소견서를 작성해 주십시오.
-학생이름: ${currentExtractedTexts.student_name}
+학생이름: ${finalStudentName}
 창의적체험활동: ${currentExtractedTexts.extracurricular_text}
 교과학습발달상황: ${currentExtractedTexts.academic_text}`;
 
       let userPromptC = `5대 교과군 세특 정성 분석을 작성해 주십시오.
-학생이름: ${currentExtractedTexts.student_name}
+학생이름: ${finalStudentName}
 교과학습발달상황: ${currentExtractedTexts.academic_text}`;
 
       if (isReParse && analysisResult) {
@@ -1794,7 +1778,7 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
       // -------------------------------------------------------------
       let synthesizedData = {
         student_profile: {
-          student_name: currentExtractedTexts.student_name || "분석대상",
+          student_name: studentName || "분석대상",
           estimated_gpa: estimatedGpa,
           major_track: selectedMajorText,
           school_type: schoolType
@@ -2031,12 +2015,32 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
 
               {/* 내신 및 고교 유형 입력 카드 */}
               <div className="bg-white border border-slate-200/80 rounded-none p-8 md:p-10 shadow-[0_4px_30px_rgba(0,0,0,0.015)]">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* 학생 성명 입력 */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <Users className="w-6 h-6 text-blue-600" />
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">학생 성명</h3>
+                    </div>
+                    <div className="w-full relative group">
+                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                        <Users className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        placeholder="예: 홍길동"
+                        className="w-full bg-slate-50 border-2 border-slate-100 focus:border-slate-900 focus:bg-white rounded-none py-4 pl-14 pr-5 text-slate-900 font-extrabold tracking-tight focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
                   {/* 내신 입력 */}
                   <div>
                     <div className="flex items-center gap-3 mb-6">
                       <TrendingUp className="w-6 h-6 text-blue-600" />
-                      <h3 className="text-xl font-black text-slate-900 tracking-tight">전교과 내신 평점 (9등급제)</h3>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">전교과 내신 평점</h3>
                     </div>
                     <div className="w-full relative group">
                       <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
