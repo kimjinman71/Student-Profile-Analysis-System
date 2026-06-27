@@ -723,7 +723,13 @@ const App = () => {
   const [extractedTexts, setExtractedTexts] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState(null);
-  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => {
+    return localStorage.getItem('remember_credentials') === 'true';
+  });
+  const [password, setPassword] = useState(() => {
+    const remember = localStorage.getItem('remember_credentials') === 'true';
+    return remember ? (localStorage.getItem('saved_password') || '') : '';
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
@@ -761,14 +767,25 @@ const App = () => {
   const [gradeSystem, setGradeSystem] = useState('9grade');
 
   // Gemini API 키 상태
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
+  const [apiKey, setApiKey] = useState(() => {
+    const remember = localStorage.getItem('remember_credentials') === 'true';
+    return remember ? (localStorage.getItem('gemini_api_key') || '') : '';
+  });
 
   // 보안 로그인 인증 검사 함수
   const handleLogin = () => {
     if (VALID_PASSWORDS.includes(password)) {
       setIsAuthenticated(true);
       setError(null);
-      localStorage.setItem('gemini_api_key', apiKey);
+      if (rememberMe) {
+        localStorage.setItem('remember_credentials', 'true');
+        localStorage.setItem('saved_password', password);
+        localStorage.setItem('gemini_api_key', apiKey);
+      } else {
+        localStorage.setItem('remember_credentials', 'false');
+        localStorage.removeItem('saved_password');
+        localStorage.removeItem('gemini_api_key');
+      }
     } else {
       setError('보안 코드가 일치하지 않습니다. 승인된 코드를 확인해 주세요.');
     }
@@ -1902,6 +1919,22 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
               placeholder="Gemini API Key 입력"
               className="w-full bg-[#F1F5F9] border border-slate-100 rounded-none py-4 pl-14 pr-4 text-slate-900 font-mono text-sm placeholder:text-slate-400 placeholder:font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
             />
+          </div>
+
+          <div className="w-full flex items-center mb-6 pl-1 justify-start">
+            <input
+              type="checkbox"
+              id="remember-credentials"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 text-[#2563EB] bg-[#F1F5F9] border-slate-300 rounded focus:ring-[#2563EB] cursor-pointer"
+            />
+            <label
+              htmlFor="remember-credentials"
+              className="ml-2 text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer select-none transition-colors"
+            >
+              보안 코드 및 API Key 저장
+            </label>
           </div>
           {error && (
             <div className="text-rose-600 text-xs font-bold mb-4 flex items-center gap-1">
