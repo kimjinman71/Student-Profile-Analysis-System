@@ -768,6 +768,7 @@ const App = () => {
     if (VALID_PASSWORDS.includes(password)) {
       setIsAuthenticated(true);
       setError(null);
+      localStorage.setItem('gemini_api_key', apiKey);
     } else {
       setError('보안 코드가 일치하지 않습니다. 승인된 코드를 확인해 주세요.');
     }
@@ -1883,6 +1884,23 @@ Index 7: 다양한 이수 과목 간 세특이 유기적으로 얽혀 일관된 
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
               placeholder="보안 코드 입력"
               className="w-full bg-[#F1F5F9] border border-slate-100 rounded-none py-4 pl-14 pr-4 text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+            />
+          </div>
+
+          <div className="w-full relative mb-4 group">
+            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#2563EB]">
+              <Key className="w-5 h-5 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" />
+            </div>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                if (error) setError(null);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              placeholder="Gemini API Key 입력"
+              className="w-full bg-[#F1F5F9] border border-slate-100 rounded-none py-4 pl-14 pr-4 text-slate-900 font-mono text-sm placeholder:text-slate-400 placeholder:font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
             />
           </div>
           {error && (
